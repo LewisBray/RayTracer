@@ -27,13 +27,6 @@ struct Ray
     Vector direction;
 };
 
-struct Colour
-{
-    real red;
-    real green;
-    real blue;
-};
-
 struct Triangle
 {
     Vector a;
@@ -53,13 +46,55 @@ struct Ellipsoid
     Matrix inverseTransform;
 };
 
+struct Colour
+{
+    real red;
+    real green;
+    real blue;
+};
+
+struct AttenuationParameters
+{
+    real constant;
+    real linear;
+    real quadratic;
+};
+
+struct DirectionalLightSource
+{
+    Vector direction;
+    Colour colour;
+    AttenuationParameters attenuationParameters;
+};
+
+struct PointLightSource
+{
+    Vector position;
+    Colour colour;
+    AttenuationParameters attenuationParameters;
+};
+
+struct Material
+{
+    Colour diffuse;
+    Colour specular;
+    Colour emission;
+    real shininess;
+};
+
 struct Scene
 {
     std::vector<Triangle> triangles;
+    std::vector<Material> triangleMaterials;
     std::vector<Colour> triangleAmbients;
+
     std::vector<Ellipsoid> ellipsoids;
     std::vector<Matrix> ellipsoidTransforms;
+    std::vector<Material> ellipsoidMaterials;
     std::vector<Colour> ellipsoidAmbients;
+
+    DirectionalLightSource directionalLightSource;
+    std::vector<PointLightSource> pointLightSources;
 };
 
 struct Image
@@ -72,7 +107,7 @@ struct Image
 
 std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
 std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept;
-Ray rayThroughPixel(const Camera& camera, const int x, const int y, const Image& image) noexcept;
-Colour intersects(const Ray& ray, const Scene& scene) noexcept;
+Ray rayThroughPixel(const Camera& camera, int x, int y, const Image& image) noexcept;
+Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) noexcept;
 
 #endif

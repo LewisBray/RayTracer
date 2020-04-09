@@ -56,17 +56,38 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
     if (!inputFile.is_open())
         return std::nullopt;
     
-    Image image{0, 0, nullptr, "raytrace.png"};
-    Camera camera{{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {0.0, 0.0}};
     Scene scene;
     int maxRecursionDepth = 5;
+    Image image{0, 0, nullptr, "raytrace.png"};
+    Camera camera{
+        Vector{0.0, 0.0, 0.0, 0.0},
+        Vector{0.0, 0.0, 0.0, 0.0},
+        Vector{0.0, 0.0, 0.0, 0.0},
+        FieldOfView{0.0, 0.0}
+    };
 
+    // Shapes
     std::vector<Vector> vertices;
-    Colour currentAmbient{0.2, 0.2, 0.2};
     Matrix currentTransform = identityMatrix();
     Matrix inverseCurrentTransform = identityMatrix();
     std::stack<Matrix, std::vector<Matrix>> transformStack;
     std::stack<Matrix, std::vector<Matrix>> inverseTransformStack;
+
+    // Lighting
+    Colour currentAmbient{0.2, 0.2, 0.2};
+    scene.directionalLightSource = DirectionalLightSource{
+        Vector{0.0, 0.0, 0.0, 1.0},
+        Colour{0.0, 0.0, 0.0},
+        AttenuationParameters{1.0, 0.0, 0.0}
+    };
+
+    // Materials
+    Material currentMaterial{
+        Colour{0.0, 0.0, 0.0},
+        Colour{0.0, 0.0, 0.0},
+        Colour{0.0, 0.0, 0.0},
+        0.0
+    };
     
     std::string line;
     bool firstCommand = true;
@@ -81,7 +102,10 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
                 
         if (command.name == "size")
         {
-            if (command.params.size() != 2 || !isInt(command.params[0]) || !isInt(command.params[1]))
+            if (command.params.size() != 2)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isInt))
                 return std::nullopt;
             
             image.width = std::stoi(command.params[0]);
@@ -169,6 +193,7 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
             const Vector c = currentTransform * vertices[indexC];
             scene.triangles.emplace_back(Triangle{a, b, c});
             scene.triangleAmbients.emplace_back(currentAmbient);
+            scene.triangleMaterials.emplace_back(currentMaterial);
         }
         else if (command.name == "sphere")
         {
@@ -187,18 +212,7 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
             scene.ellipsoids.emplace_back(Ellipsoid{centre, radius, inverseCurrentTransform});
             scene.ellipsoidTransforms.emplace_back(currentTransform);
             scene.ellipsoidAmbients.emplace_back(currentAmbient);
-        }
-        else if (command.name == "ambient")
-        {
-            if (command.params.size() != 3)
-                return std::nullopt;
-            
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            currentAmbient.red = std::stor(command.params[0]);
-            currentAmbient.green = std::stor(command.params[1]);
-            currentAmbient.blue = std::stor(command.params[2]);
+            scene.ellipsoidMaterials.emplace_back(currentMaterial);
         }
         else if (command.name == "pushTransform")
         {
@@ -269,6 +283,117 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
             const Matrix inverseRotation = rotationMatrix(-angle, axisX, axisY, axisZ);
             currentTransform = currentTransform * rotation;
             inverseCurrentTransform = inverseRotation * inverseCurrentTransform;
+        }
+        else if (command.name == "directional")
+        {
+            if (command.params.size() != 6)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            scene.directionalLightSource.direction.x = std::stor(command.params[0]);
+            scene.directionalLightSource.direction.y = std::stor(command.params[1]);
+            scene.directionalLightSource.direction.z = std::stor(command.params[2]);
+            scene.directionalLightSource.direction.w = 1.0;
+
+            scene.directionalLightSource.colour.red = std::stor(command.params[3]);
+            scene.directionalLightSource.colour.green = std::stor(command.params[4]);
+            scene.directionalLightSource.colour.blue = std::stor(command.params[5]);
+        }
+        else if (command.name == "point")
+        {
+            if (command.params.size() != 6)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            const real x = std::stor(command.params[0]);
+            const real y = std::stor(command.params[1]);
+            const real z = std::stor(command.params[2]);
+
+            const real r = std::stor(command.params[3]);
+            const real g = std::stor(command.params[4]);
+            const real b = std::stor(command.params[5]);
+
+            const PointLightSource pointLight{
+                Vector{x, y, z, 1.0},
+                Colour{r, g, b},
+                AttenuationParameters{0.0, 0.0, 1.0}
+            };
+
+            scene.pointLightSources.emplace_back(pointLight);
+        }
+        else if (command.name == "attenuation")
+        {
+            if (command.params.size() != 3)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            scene.directionalLightSource.attenuationParameters.constant = std::stor(command.params[0]);
+            scene.directionalLightSource.attenuationParameters.linear = std::stor(command.params[1]);
+            scene.directionalLightSource.attenuationParameters.quadratic = std::stor(command.params[2]);
+        }
+        else if (command.name == "ambient")
+        {
+            if (command.params.size() != 3)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            currentAmbient.red = std::stor(command.params[0]);
+            currentAmbient.green = std::stor(command.params[1]);
+            currentAmbient.blue = std::stor(command.params[2]);
+        }
+        else if (command.name == "diffuse")
+        {
+            if (command.params.size() != 3)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            currentMaterial.diffuse.red = std::stor(command.params[0]);
+            currentMaterial.diffuse.green = std::stor(command.params[1]);
+            currentMaterial.diffuse.blue = std::stor(command.params[2]);
+        }
+        else if (command.name == "specular")
+        {
+            if (command.params.size() != 3)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            currentMaterial.specular.red = std::stor(command.params[0]);
+            currentMaterial.specular.green = std::stor(command.params[1]);
+            currentMaterial.specular.blue = std::stor(command.params[2]);
+        }
+        else if (command.name == "emission")
+        {
+            if (command.params.size() != 3)
+                return std::nullopt;
+            
+            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
+                return std::nullopt;
+            
+            currentMaterial.emission.red = std::stor(command.params[0]);
+            currentMaterial.emission.green = std::stor(command.params[1]);
+            currentMaterial.emission.blue = std::stor(command.params[2]);
+        }
+        else if (command.name == "shininess")
+        {
+            if (command.params.size() != 1)
+                return std::nullopt;
+            
+            if (!isFloatingPoint(command.params.front()))
+                return std::nullopt;
+            
+            currentMaterial.shininess = std::stor(command.params.front());
         }
 
         firstCommand = false;
