@@ -34,17 +34,17 @@ static Command parseCommand(const std::string& str)
 {
     Command command;
 
-    bool firstRead = true;
     std::string token;
     std::stringstream tokenStream{str};
     while (std::getline(tokenStream, token, ' '))
     {
-        if (firstRead)
+        if (token.empty())
+            continue;
+
+        if (command.name.empty())
             command.name = token;
-        else if (!token.empty())
+        else
             command.params.push_back(token);
-        
-        firstRead = false;
     }
 
     return command;
@@ -394,6 +394,10 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
                 return std::nullopt;
             
             currentMaterial.shininess = std::stor(command.params.front());
+        }
+        else
+        {
+            return std::nullopt;
         }
 
         firstCommand = false;
