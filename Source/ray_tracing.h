@@ -74,7 +74,7 @@ struct Scene
     std::vector<Material> ellipsoidMaterials;
     std::vector<Colour> ellipsoidAmbients;
 
-    DirectionalLightSource directionalLightSource;
+    std::optional<DirectionalLightSource> directionalLightSource;
     std::vector<PointLightSource> pointLightSources;
 };
 

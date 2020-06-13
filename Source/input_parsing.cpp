@@ -75,11 +75,7 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
 
     // Lighting
     Colour currentAmbient{0.2, 0.2, 0.2};
-    scene.directionalLightSource = DirectionalLightSource{
-        Vector{0.0, 0.0, 0.0, 1.0},
-        Colour{0.0, 0.0, 0.0},
-        AttenuationParameters{1.0, 0.0, 0.0}
-    };
+    scene.directionalLightSource = std::nullopt;
 
     // Materials
     Material currentMaterial{
@@ -292,14 +288,23 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
             if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
                 return std::nullopt;
             
-            scene.directionalLightSource.direction.x = std::stor(command.params[0]);
-            scene.directionalLightSource.direction.y = std::stor(command.params[1]);
-            scene.directionalLightSource.direction.z = std::stor(command.params[2]);
-            scene.directionalLightSource.direction.w = 1.0;
+            if (!scene.directionalLightSource.has_value())
+            {
+                scene.directionalLightSource = DirectionalLightSource {
+                    Vector{0.0, 0.0, 0.0, 1.0},
+                    Colour{0.0, 0.0, 0.0},
+                    AttenuationParameters{1.0, 0.0, 0.0}
+                };
+            }
 
-            scene.directionalLightSource.colour.red = std::stor(command.params[3]);
-            scene.directionalLightSource.colour.green = std::stor(command.params[4]);
-            scene.directionalLightSource.colour.blue = std::stor(command.params[5]);
+            scene.directionalLightSource.value().direction.x = std::stor(command.params[0]);
+            scene.directionalLightSource.value().direction.y = std::stor(command.params[1]);
+            scene.directionalLightSource.value().direction.z = std::stor(command.params[2]);
+            scene.directionalLightSource.value().direction.w = 1.0;
+
+            scene.directionalLightSource.value().colour.red = std::stor(command.params[3]);
+            scene.directionalLightSource.value().colour.green = std::stor(command.params[4]);
+            scene.directionalLightSource.value().colour.blue = std::stor(command.params[5]);
         }
         else if (command.name == "point")
         {
@@ -333,9 +338,18 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
             if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
                 return std::nullopt;
             
-            scene.directionalLightSource.attenuationParameters.constant = std::stor(command.params[0]);
-            scene.directionalLightSource.attenuationParameters.linear = std::stor(command.params[1]);
-            scene.directionalLightSource.attenuationParameters.quadratic = std::stor(command.params[2]);
+            if (!scene.directionalLightSource.has_value())
+            {
+                scene.directionalLightSource = DirectionalLightSource {
+                    Vector{0.0, 0.0, 0.0, 1.0},
+                    Colour{0.0, 0.0, 0.0},
+                    AttenuationParameters{1.0, 0.0, 0.0}
+                };
+            }
+
+            scene.directionalLightSource.value().attenuationParameters.constant = std::stor(command.params[0]);
+            scene.directionalLightSource.value().attenuationParameters.linear = std::stor(command.params[1]);
+            scene.directionalLightSource.value().attenuationParameters.quadratic = std::stor(command.params[2]);
         }
         else if (command.name == "ambient")
         {

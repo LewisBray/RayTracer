@@ -270,13 +270,12 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) no
 
         colour = ambient + material.emission;
 
-        const DirectionalLightSource& directionalLight = scene.directionalLightSource;
-        // TO-DO: This check is horrible, fix it at input parsing stage, maybe optional directional light source?
-        if (directionalLight.direction.x != 0.0 && directionalLight.direction.y != 0.0 && directionalLight.direction.z != 0.0)
+        if (scene.directionalLightSource.has_value())
         {
-            if (!pathIsBlocked(intersectionPoint, directionalLight, scene))
+            const DirectionalLightSource& directionalLightSource = scene.directionalLightSource.value();
+            if (!pathIsBlocked(intersectionPoint, directionalLightSource, scene))
             {
-                const Vector directionToLight = directionalLight.direction;
+                const Vector directionToLight = directionalLightSource.direction;
 
                 const Colour diffuseContribution =
                     std::max(surfaceNormal * directionToLight, 0.0) * material.diffuse;
@@ -285,7 +284,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) no
                 const Colour specularContribution =
                     std::pow(std::max(surfaceNormal * halfAngle, 0.0), material.shininess) * material.specular;
 
-                colour += intensity(directionalLight.colour) * (diffuseContribution + specularContribution);
+                colour += intensity(directionalLightSource.colour) * (diffuseContribution + specularContribution);
             }
         }
 
