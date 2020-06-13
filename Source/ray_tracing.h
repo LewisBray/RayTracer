@@ -27,25 +27,6 @@ struct Ray
     Vector direction;
 };
 
-struct Triangle
-{
-    Vector a;
-    Vector b;
-    Vector c;
-};
-
-struct Sphere
-{
-    Vector centre;
-    real radius;
-};
-
-struct Ellipsoid
-{
-    Sphere sphere;
-    Matrix inverseTransform;
-};
-
 struct Colour
 {
     real red;
@@ -105,9 +86,11 @@ struct Image
     std::string filename;
 };
 
-std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
-std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept;
 Ray rayThroughPixel(const Camera& camera, int x, int y, const Image& image) noexcept;
 Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) noexcept;
+
+// Exposed at the moment for testing but ultimately should be static
+std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
+std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept;
 
 #endif

@@ -42,4 +42,27 @@ Matrix scalingMatrix(real xScale, real yScale, real zScale) noexcept;
 Matrix translationMatrix(real xOffset, real yOffset, real zOffset) noexcept;
 Matrix rotationMatrix(real angle, real axisX, real axisY, real axisZ) noexcept;
 
+struct Triangle
+{
+    Vector a;
+    Vector b;
+    Vector c;
+};
+
+struct Sphere
+{
+    Vector centre;
+    real radius;
+};
+
+struct Ellipsoid
+{
+    Sphere sphere;
+    Matrix inverseTransform;
+};
+
+Vector unitSurfaceNormal(const Triangle& triangle) noexcept;
+Vector unitSurfaceNormal(const Sphere& sphere, const Vector& point) noexcept;
+Vector unitSurfaceNormal(const Ellipsoid& ellipsoid, const Matrix& ellipsoidTransform, const Vector& point) noexcept;
+
 #endif

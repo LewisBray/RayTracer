@@ -6,7 +6,7 @@
 
 TEST_CASE("intersect", "[intersect]")
 {
-    SECTION("triangle intersection")
+    SECTION("triangle_intersection")
     {
         const Vector start{0.0, 0.0, 5.0, 1.0};
         const Vector direction{0.0, 0.0, -1.0, 1.0};
@@ -66,7 +66,7 @@ TEST_CASE("intersect", "[intersect]")
         REQUIRE(areEqual(weirdIntersectionDistance.value(), 3.178055923));
     }
 
-    SECTION("sphere intersection")
+    SECTION("sphere_intersection")
     {
         const Vector centre{4.0, 1.0, -8.0, 1.0};
         const real radius = 3.0;
@@ -102,6 +102,14 @@ TEST_CASE("intersect", "[intersect]")
         const std::optional<real> internalIntersectionDistance = intersect(internalRay, sphere);
         REQUIRE(internalIntersectionDistance.has_value());
         REQUIRE(areEqual(internalIntersectionDistance.value(), 1.645751311));
+    }
+
+    // Triangle and sphere intersection methods should be tested indirectly through the
+    // scene intersection method so the above tests need to be moved into the sub-sections
+    // of this section and have a simple scene set up to mimic what's above
+    SECTION("scene_intersection")
+    {
+
     }
 }
 

@@ -7,12 +7,14 @@
 #include <array>
 #include <cmath>
 
+// Angle conversion
 real toRadians(const real angleInDegrees) noexcept
 {
     return angleInDegrees / 180.0 * pi;
 }
 
 
+// Floating point comparisons
 constexpr real tolerance = 1.0e-6;
 
 bool areEqual(const real x, const real y) noexcept
@@ -31,6 +33,7 @@ bool greaterThan(const real x, const real y) noexcept
 }
 
 
+// Vector operations
 Vector operator+(const Vector& lhs, const Vector& rhs) noexcept
 {
     return Vector {
@@ -104,6 +107,7 @@ Vector homogenise(const Vector& v) noexcept
 }
 
 
+// Matrix operations
 Vector operator*(const Matrix& m, const Vector& v) noexcept
 {
     return Vector {
@@ -195,4 +199,29 @@ Matrix rotationMatrix(const real angle, const real axisX, const real axisY, cons
     ret[3][3] = 1.0;
 
     return ret;
+}
+
+
+// Shape operations
+Vector unitSurfaceNormal(const Triangle& triangle) noexcept
+{
+    return normalise((triangle.b - triangle.a) ^ (triangle.c - triangle.a));
+}
+
+Vector unitSurfaceNormal(const Sphere& sphere, const Vector& point) noexcept
+{
+    return normalise(point - sphere.centre);
+}
+
+Vector unitSurfaceNormal(const Ellipsoid& ellipsoid,
+    const Matrix& ellipsoidTransform, const Vector& point) noexcept
+{
+    const Vector pointInEllipsoidSpace = ellipsoid.inverseTransform * point;
+    
+    Vector surfaceNormal = homogenise(unitSurfaceNormal(ellipsoid.sphere, pointInEllipsoidSpace));
+    surfaceNormal.w = 0.0;
+    surfaceNormal = ellipsoidTransform * surfaceNormal;
+    surfaceNormal.w = 1.0;
+
+    return normalise(surfaceNormal);
 }

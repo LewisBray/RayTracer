@@ -7,6 +7,7 @@
 #include <limits>
 #include <cmath>
 
+// Intersection functions
 std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept
 {
     const Vector aToB = triangle.b - triangle.a;
@@ -61,24 +62,7 @@ std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept
         return std::min(intersectionDistance1, intersectionDistance2);
 }
 
-Ray rayThroughPixel(const Camera& camera, const int x, const int y, const Image& image) noexcept
-{
-    const Vector w = normalise(camera.lookAt - camera.eye); // check this isn't 0 vector
-    const Vector u = normalise(camera.up ^ w);
-    const Vector v = w ^ u;
-
-    const real halfImageWorldWidth = std::tan(0.5 * toRadians(camera.fieldOfView.x));
-    const real halfImagePixelWidth = 0.5 * image.width;
-    const real alpha = halfImageWorldWidth * (halfImagePixelWidth - (x + 0.5)) / halfImagePixelWidth;
-
-    const real halfImageWorldHeight = std::tan(0.5 * toRadians(camera.fieldOfView.y));
-    const real halfImagePixelHeight = 0.5 * image.height;
-    const real beta = halfImageWorldHeight * (halfImagePixelHeight - (y + 0.5)) / halfImagePixelHeight;
-    
-    const Vector rayDirection = normalise(alpha * u + beta * v + w);
-    return Ray{camera.eye, rayDirection};
-}
-
+// Ray helper methods
 static Ray transformRay(const Matrix& transform, Ray ray) noexcept
 {
     ray.start = transform * ray.start;
@@ -91,12 +75,13 @@ static Ray transformRay(const Matrix& transform, Ray ray) noexcept
     return Ray{ray.start, normalise(ray.direction)};
 }
 
-Colour operator+(const Colour& lhs, const Colour& rhs) noexcept
+// Colour operations
+static Colour operator+(const Colour& lhs, const Colour& rhs) noexcept
 {
     return Colour{ lhs.red + rhs.red, lhs.green + rhs.green, lhs.blue + rhs.blue};
 }
 
-Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept
+static Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept
 {
     lhs.red += rhs.red;
     lhs.green += rhs.green;
@@ -105,40 +90,18 @@ Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept
     return lhs;
 }
 
-Colour operator*(const real scalar, const Colour& colour) noexcept
+static Colour operator*(const real scalar, const Colour& colour) noexcept
 {
     return Colour{scalar * colour.red, scalar * colour.green, scalar * colour.blue};
 }
 
-Vector unitSurfaceNormal(const Triangle& triangle) noexcept
-{
-    return normalise((triangle.b - triangle.a) ^ (triangle.c - triangle.a));
-}
-
-Vector unitSurfaceNormal(const Sphere& sphere, const Vector& point) noexcept
-{
-    return normalise(point - sphere.centre);
-}
-
-Vector unitSurfaceNormal(const Ellipsoid& ellipsoid,
-    const Matrix& ellipsoidTransform, const Vector& point) noexcept
-{
-    const Vector pointInEllipsoidSpace = ellipsoid.inverseTransform * point;
-    
-    Vector surfaceNormal = homogenise(unitSurfaceNormal(ellipsoid.sphere, pointInEllipsoidSpace));
-    surfaceNormal.w = 0.0;
-    surfaceNormal = ellipsoidTransform * surfaceNormal;
-    surfaceNormal.w = 1.0;
-
-    return normalise(surfaceNormal);
-}
-
-real intensity(const Colour& colour) noexcept
+static real intensity(const Colour& colour) noexcept
 {
     return (colour.red + colour.green + colour.blue) / 3.0;
 }
 
-real attenuation(const AttenuationParameters& attenuationParameters, const real distance) noexcept
+// Attenuation functions
+static real attenuation(const AttenuationParameters& attenuationParameters, const real distance) noexcept
 {
     const real constantTerm = attenuationParameters.constant;
     const real linearTerm = attenuationParameters.linear * distance;
@@ -147,7 +110,8 @@ real attenuation(const AttenuationParameters& attenuationParameters, const real 
     return 1.0 / (constantTerm + linearTerm + quadraticTerm);
 }
 
-bool pathIsBlocked(const Vector& start, const PointLightSource& light, const Scene& scene) noexcept
+// Light source path checking functions
+static bool pathIsBlocked(const Vector& start, const PointLightSource& light, const Scene& scene) noexcept
 {
     const Vector startToDestination = light.position - start;
     const real distanceToDestination = magnitude(startToDestination);
@@ -179,7 +143,7 @@ bool pathIsBlocked(const Vector& start, const PointLightSource& light, const Sce
     return false;
 }
 
-bool pathIsBlocked(const Vector& start, const DirectionalLightSource& light, const Scene& scene) noexcept
+static bool pathIsBlocked(const Vector& start, const DirectionalLightSource& light, const Scene& scene) noexcept
 {
     const Ray ray{start, light.direction};
 
@@ -207,6 +171,25 @@ bool pathIsBlocked(const Vector& start, const DirectionalLightSource& light, con
     }
 
     return false;
+}
+
+// Exposed functions
+Ray rayThroughPixel(const Camera& camera, const int x, const int y, const Image& image) noexcept
+{
+    const Vector w = normalise(camera.lookAt - camera.eye); // check this isn't 0 vector
+    const Vector u = normalise(camera.up ^ w);
+    const Vector v = w ^ u;
+
+    const real halfImageWorldWidth = std::tan(0.5 * toRadians(camera.fieldOfView.x));
+    const real halfImagePixelWidth = 0.5 * image.width;
+    const real alpha = halfImageWorldWidth * (halfImagePixelWidth - (x + 0.5)) / halfImagePixelWidth;
+
+    const real halfImageWorldHeight = std::tan(0.5 * toRadians(camera.fieldOfView.y));
+    const real halfImagePixelHeight = 0.5 * image.height;
+    const real beta = halfImageWorldHeight * (halfImagePixelHeight - (y + 0.5)) / halfImagePixelHeight;
+    
+    const Vector rayDirection = normalise(alpha * u + beta * v + w);
+    return Ray{camera.eye, rayDirection};
 }
 
 Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) noexcept

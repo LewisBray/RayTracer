@@ -289,3 +289,87 @@ TEST_CASE("Matrix", "[Matrix]")
         }
     }
 }
+
+
+TEST_CASE("shape_normals", "[shape_normals]")
+{
+    SECTION("Triangle")
+    {
+        const Vector a{-0.5, -0.5, 0.0, 1.0};
+        const Vector b{0.5, -0.5, 0.0, 1.0};
+        const Vector c{0.5, 0.5, 0.0, 1.0};
+
+        const Triangle antiClockwiseTriangle{a, b, c};
+        const Vector antiClockwiseUnitSurfaceNormal = unitSurfaceNormal(antiClockwiseTriangle);
+        REQUIRE(areEqual(antiClockwiseUnitSurfaceNormal, k));
+
+        const Triangle clockwiseTriangle{a, c, b};
+        const Vector clockwiseUnitSurfaceNormal = unitSurfaceNormal(clockwiseTriangle);
+        REQUIRE(areEqual(clockwiseUnitSurfaceNormal, Vector{0.0, 0.0, -1.0, 1.0}));
+    }
+
+    SECTION("Sphere")
+    {
+        const Vector centre{1.0, 2.0, 3.0, 1.0};
+        const real radius = 3.0;
+        const Sphere sphere{centre, radius};
+
+        const Vector unitNormal1 = unitSurfaceNormal(sphere, centre + i);
+        REQUIRE(areEqual(unitNormal1, i));
+
+        const Vector unitNormal2 = unitSurfaceNormal(sphere, centre - i);
+        REQUIRE(areEqual(unitNormal2, Vector{-1.0, 0.0, 0.0, 1.0}));
+
+        const Vector unitNormal3 = unitSurfaceNormal(sphere, centre + j);
+        REQUIRE(areEqual(unitNormal3, j));
+
+        const Vector unitNormal4 = unitSurfaceNormal(sphere, centre - j);
+        REQUIRE(areEqual(unitNormal4, Vector{0.0, -1.0, 0.0, 1.0}));
+
+        const Vector unitNormal5 = unitSurfaceNormal(sphere, centre + k);
+        REQUIRE(areEqual(unitNormal5, k));
+
+        const Vector unitNormal6 = unitSurfaceNormal(sphere, centre - k);
+        REQUIRE(areEqual(unitNormal6, Vector{0.0, 0.0, -1.0, 1.0}));
+
+        const Vector unitNormal7 = unitSurfaceNormal(sphere, centre + i + j + k);
+        REQUIRE(areEqual(unitNormal7, normalise(i + j + k)));
+    }
+
+    SECTION("Ellipsoid")
+    {
+        const Vector origin{0.0, 0.0, 0.0, 1.0};
+        const real radius = 2.0;
+
+        const real xScale = 3.0;
+        const real yScale = 2.0;
+        const real zScale = 1.0;
+        const Matrix scale = scalingMatrix(xScale, yScale, zScale);
+        const Matrix scaleInverse = scalingMatrix(1.0 / xScale, 1.0 / yScale, 1.0 / zScale);
+
+        const real angle = 90.0;
+        const Matrix rotate = rotationMatrix(0.0, 0.0, 1.0, angle);
+        const Matrix rotateInverse = rotationMatrix(0.0, 0.0, 1.0, -angle);
+        
+        const real xShift = 4.0;
+        const real yShift = 5.0;
+        const real zShift = 6.0;
+        const Matrix translate = translationMatrix(xShift, yShift, zShift);
+        const Matrix translateInverse = translationMatrix(-xShift, -yShift, -zShift);        
+        
+        const Matrix transform = translate * rotate * scale;
+        const Matrix transformInverse = scaleInverse * rotateInverse * translateInverse;
+
+        const Sphere sphere{origin, radius};
+        const Ellipsoid ellipsoid{sphere, transformInverse};
+
+        const Vector unitNormal3 = unitSurfaceNormal(ellipsoid, transform, transform * i);
+        REQUIRE(areEqual(unitNormal3, Vector{xScale, 0.0, 0.0, xScale}));
+
+        const Vector unitNormal2 = unitSurfaceNormal(ellipsoid, transform, transform * j);
+        REQUIRE(areEqual(unitNormal2, Vector{0.0, yScale, 0.0, yScale}));
+
+        const Vector unitNormal1 = unitSurfaceNormal(ellipsoid, transform, transform * k);
+        REQUIRE(areEqual(unitNormal1, Vector{0.0, 0.0, zScale, zScale}));
+    }
+}
