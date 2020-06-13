@@ -3,9 +3,8 @@
 
 #include "ray_tracing.h"
 
-#include <optional>
+#include <variant>
 #include <cstdint>
-#include <string>
 
 struct FileInfo
 {
@@ -15,6 +14,6 @@ struct FileInfo
     int maxRecursionDepth;
 };
 
-std::optional<FileInfo> parseInputFile(const char* const filename);
+std::variant<FileInfo, const char*> parseInputFile(const char* const filename);
 
 #endif

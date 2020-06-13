@@ -3,7 +3,7 @@
 #include "maths.h"
 
 #include <algorithm>
-#include <optional>
+#include <variant>
 #include <sstream>
 #include <fstream>
 #include <cassert>
@@ -12,7 +12,7 @@
 #include <stack>
 #include <regex>
 
-static bool isInt(const std::string& str)
+static bool isPositiveInt(const std::string& str)
 {
     static const std::regex intRegex("[0-9]+");
     return std::regex_match(str.begin(), str.end(), intRegex);
@@ -50,11 +50,11 @@ static Command parseCommand(const std::string& str)
     return command;
 }
 
-std::optional<FileInfo> parseInputFile(const char* const filename)
+std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
 {
     std::ifstream inputFile(filename);
     if (!inputFile.is_open())
-        return std::nullopt;
+        return "Failed to open input file.";
     
     Scene scene;
     int maxRecursionDepth = 5;
@@ -94,62 +94,61 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         
         const Command command = parseCommand(line);
         if (firstCommand && command.name != "size")
-            return std::nullopt;
+            return "First command should be 'size'.";
                 
         if (command.name == "size")
         {
-            if (command.params.size() != 2)
-                return std::nullopt;
-            
-            if (!std::all_of(command.params.begin(), command.params.end(), isInt))
-                return std::nullopt;
-            
-            image.width = std::stoi(command.params[0]);
-            image.height = std::stoi(command.params[1]);
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 2 || !std::all_of(params.begin(), params.end(), isPositiveInt))
+                return "'size' command should have 2 positive integer parameters.";
+                        
+            image.width = std::stoi(params[0]);
+            image.height = std::stoi(params[1]);
             image.pixels = new unsigned char[image.width * image.height * 3];
         }
         else if (command.name == "output")
         {
             if (command.params.size() != 1)
-                return std::nullopt;
+                return "'output' command should have 1 parameter.";
             
             image.filename = command.params[0]; // Do I need to add .png to the end if it isn't there?
         }
         else if (command.name == "maxdepth")
         {
-            if (command.params.size() != 1 || !isInt(command.params[0]))
-                return std::nullopt;
+            if (command.params.size() != 1 || !isPositiveInt(command.params[0]))
+                return "'maxdepth' command should have 1 positive integer parameter.";
             
             maxRecursionDepth = std::stoi(command.params.front());
         }
         else if (command.name == "maxverts")
         {
-            if (!vertices.empty() || command.params.size() != 1 || !isInt(command.params[0]))
-                return std::nullopt;
+            if (!vertices.empty())
+                return "'maxverts' should be specified before vertices are specified.";
+
+            if (command.params.size() != 1 || !isPositiveInt(command.params[0]))
+                return "'maxverts' command should have 1 positive integer parameter.";
             
             vertices.reserve(std::stoi(command.params[0]));
         }
         else if (command.name == "camera")
         {
-            if (command.params.size() != 10)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 10 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'camera' command should have 10 floating point parameters.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            camera.eye.x = std::stor(command.params[0]);
-            camera.eye.y = std::stor(command.params[1]);
-            camera.eye.z = std::stor(command.params[2]);
+            camera.eye.x = std::stor(params[0]);
+            camera.eye.y = std::stor(params[1]);
+            camera.eye.z = std::stor(params[2]);
             camera.eye.w = 1.0;
 
-            camera.lookAt.x = std::stor(command.params[3]);
-            camera.lookAt.y = std::stor(command.params[4]);
-            camera.lookAt.z = std::stor(command.params[5]);
+            camera.lookAt.x = std::stor(params[3]);
+            camera.lookAt.y = std::stor(params[4]);
+            camera.lookAt.z = std::stor(params[5]);
             camera.lookAt.w = 1.0;
 
-            camera.up.x = std::stor(command.params[6]);
-            camera.up.y = std::stor(command.params[7]);
-            camera.up.z = std::stor(command.params[8]);
+            camera.up.x = std::stor(params[6]);
+            camera.up.y = std::stor(params[7]);
+            camera.up.z = std::stor(params[8]);
             camera.up.w = 1.0;
 
             assert(!firstCommand);
@@ -158,31 +157,27 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "vertex")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
-            
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'vertex' command should have 3 floating point parameters.";
             
             assert(!firstCommand);
-            const real x = std::stor(command.params[0]);
-            const real y = std::stor(command.params[1]);
-            const real z = std::stor(command.params[2]);
+            const real x = std::stor(params[0]);
+            const real y = std::stor(params[1]);
+            const real z = std::stor(params[2]);
             vertices.emplace_back(Vector{x, y, z, 1.0});
         }
         else if (command.name == "tri")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isPositiveInt))
+                return "'tri' command should have 3 positive integer parameters.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isInt))
-                return std::nullopt;
-            
-            const int indexA = std::stoi(command.params[0]);
-            const int indexB = std::stoi(command.params[1]);
-            const int indexC = std::stoi(command.params[2]);
+            const int indexA = std::stoi(params[0]);
+            const int indexB = std::stoi(params[1]);
+            const int indexC = std::stoi(params[2]);
             if (std::max({indexA, indexB, indexC}) >= vertices.size())
-                return std::nullopt;
+                return "Vertex index specified in 'tri' command is beyond the number of specified vertices.";
 
             const Vector a = currentTransform * vertices[indexA];
             const Vector b = currentTransform * vertices[indexB];
@@ -193,16 +188,14 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "sphere")
         {
-            if (command.params.size() != 4)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 4 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'sphere' command should have 3 floating point parameters.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            const real centreX = std::stor(command.params[0]);
-            const real centreY = std::stor(command.params[1]);
-            const real centreZ = std::stor(command.params[2]);
-            const real radius = std::stor(command.params[3]);
+            const real centreX = std::stor(params[0]);
+            const real centreY = std::stor(params[1]);
+            const real centreZ = std::stor(params[2]);
+            const real radius = std::stor(params[3]);
             const Vector centre{centreX, centreY, centreZ, 1.0};
 
             scene.ellipsoids.emplace_back(Ellipsoid{centre, radius, inverseCurrentTransform});
@@ -213,7 +206,7 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         else if (command.name == "pushTransform")
         {
             if (!command.params.empty())
-                return std::nullopt;
+                return "'pushTransform' command does not take any parameters.";
             
             transformStack.push(currentTransform);
             inverseTransformStack.push(inverseCurrentTransform);
@@ -222,9 +215,12 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "popTransform")
         {
-            if (!command.params.empty() || transformStack.empty())
-                return std::nullopt;
+            if (!command.params.empty())
+                return "'popTransform' command does not take any parameters";
             
+            if (transformStack.empty())
+                return "Cannot perform 'popTransform' cas there are no transforms on the stack.";
+
             assert(!inverseTransformStack.empty());
             currentTransform = transformStack.top();
             inverseCurrentTransform = inverseTransformStack.top();
@@ -233,15 +229,13 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "translate")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'translate' command should have 3 floating point parameters.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            const real xOffset = std::stor(command.params[0]);
-            const real yOffset = std::stor(command.params[1]);
-            const real zOffset = std::stor(command.params[2]);
+            const real xOffset = std::stor(params[0]);
+            const real yOffset = std::stor(params[1]);
+            const real zOffset = std::stor(params[2]);
             const Matrix translation = translationMatrix(xOffset, yOffset, zOffset);
             const Matrix inverseTranslation = translationMatrix(-xOffset, -yOffset, -zOffset);
             currentTransform = currentTransform * translation;
@@ -249,15 +243,13 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "scale")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'scale' command should have 3 floating point arguments.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            const real xScale = std::stor(command.params[0]);
-            const real yScale = std::stor(command.params[1]);
-            const real zScale = std::stor(command.params[2]);
+            const real xScale = std::stor(params[0]);
+            const real yScale = std::stor(params[1]);
+            const real zScale = std::stor(params[2]);
             const Matrix scaling = scalingMatrix(xScale, yScale, zScale);
             const Matrix inverseScaling = scalingMatrix(1.0 / xScale, 1.0 / yScale, 1.0 / zScale);
             currentTransform = currentTransform * scaling;
@@ -265,16 +257,14 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "rotate")
         {
-            if (command.params.size() != 4)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 4 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'rotate' command should have 4 floating point arguments.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            const real axisX = std::stor(command.params[0]);
-            const real axisY = std::stor(command.params[1]);
-            const real axisZ = std::stor(command.params[2]);
-            const real angle = std::stor(command.params[3]);
+            const real axisX = std::stor(params[0]);
+            const real axisY = std::stor(params[1]);
+            const real axisZ = std::stor(params[2]);
+            const real angle = std::stor(params[3]);
             const Matrix rotation = rotationMatrix(angle, axisX, axisY, axisZ);
             const Matrix inverseRotation = rotationMatrix(-angle, axisX, axisY, axisZ);
             currentTransform = currentTransform * rotation;
@@ -282,11 +272,9 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "directional")
         {
-            if (command.params.size() != 6)
-                return std::nullopt;
-            
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 6 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'directional' command should have 6 floating point parameters.";
             
             if (!scene.directionalLightSource.has_value())
             {
@@ -297,30 +285,28 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
                 };
             }
 
-            scene.directionalLightSource.value().direction.x = std::stor(command.params[0]);
-            scene.directionalLightSource.value().direction.y = std::stor(command.params[1]);
-            scene.directionalLightSource.value().direction.z = std::stor(command.params[2]);
+            scene.directionalLightSource.value().direction.x = std::stor(params[0]);
+            scene.directionalLightSource.value().direction.y = std::stor(params[1]);
+            scene.directionalLightSource.value().direction.z = std::stor(params[2]);
             scene.directionalLightSource.value().direction.w = 1.0;
 
-            scene.directionalLightSource.value().colour.red = std::stor(command.params[3]);
-            scene.directionalLightSource.value().colour.green = std::stor(command.params[4]);
-            scene.directionalLightSource.value().colour.blue = std::stor(command.params[5]);
+            scene.directionalLightSource.value().colour.red = std::stor(params[3]);
+            scene.directionalLightSource.value().colour.green = std::stor(params[4]);
+            scene.directionalLightSource.value().colour.blue = std::stor(params[5]);
         }
         else if (command.name == "point")
         {
-            if (command.params.size() != 6)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 6 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'point' command should have 6 floating point parameters.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            const real x = std::stor(command.params[0]);
-            const real y = std::stor(command.params[1]);
-            const real z = std::stor(command.params[2]);
+            const real x = std::stor(params[0]);
+            const real y = std::stor(params[1]);
+            const real z = std::stor(params[2]);
 
-            const real r = std::stor(command.params[3]);
-            const real g = std::stor(command.params[4]);
-            const real b = std::stor(command.params[5]);
+            const real r = std::stor(params[3]);
+            const real g = std::stor(params[4]);
+            const real b = std::stor(params[5]);
 
             const PointLightSource pointLight{
                 Vector{x, y, z, 1.0},
@@ -332,11 +318,9 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
         }
         else if (command.name == "attenuation")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
-            
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'attenuation' command should have 3 floating point arguments.";
             
             if (!scene.directionalLightSource.has_value())
             {
@@ -347,71 +331,60 @@ std::optional<FileInfo> parseInputFile(const char* const filename)
                 };
             }
 
-            scene.directionalLightSource.value().attenuationParameters.constant = std::stor(command.params[0]);
-            scene.directionalLightSource.value().attenuationParameters.linear = std::stor(command.params[1]);
-            scene.directionalLightSource.value().attenuationParameters.quadratic = std::stor(command.params[2]);
+            scene.directionalLightSource.value().attenuationParameters.constant = std::stor(params[0]);
+            scene.directionalLightSource.value().attenuationParameters.linear = std::stor(params[1]);
+            scene.directionalLightSource.value().attenuationParameters.quadratic = std::stor(params[2]);
         }
         else if (command.name == "ambient")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'ambient' command should have 3 floating point arguments.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            currentAmbient.red = std::stor(command.params[0]);
-            currentAmbient.green = std::stor(command.params[1]);
-            currentAmbient.blue = std::stor(command.params[2]);
+            currentAmbient.red = std::stor(params[0]);
+            currentAmbient.green = std::stor(params[1]);
+            currentAmbient.blue = std::stor(params[2]);
         }
         else if (command.name == "diffuse")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'diffuse' command should have 3 floating point arguments.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            currentMaterial.diffuse.red = std::stor(command.params[0]);
-            currentMaterial.diffuse.green = std::stor(command.params[1]);
-            currentMaterial.diffuse.blue = std::stor(command.params[2]);
+            currentMaterial.diffuse.red = std::stor(params[0]);
+            currentMaterial.diffuse.green = std::stor(params[1]);
+            currentMaterial.diffuse.blue = std::stor(params[2]);
         }
         else if (command.name == "specular")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'specular' command should have 3 floating point arguments.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            currentMaterial.specular.red = std::stor(command.params[0]);
-            currentMaterial.specular.green = std::stor(command.params[1]);
-            currentMaterial.specular.blue = std::stor(command.params[2]);
+            currentMaterial.specular.red = std::stor(params[0]);
+            currentMaterial.specular.green = std::stor(params[1]);
+            currentMaterial.specular.blue = std::stor(params[2]);
         }
         else if (command.name == "emission")
         {
-            if (command.params.size() != 3)
-                return std::nullopt;
+            const std::vector<std::string>& params = command.params;
+            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
+                return "'emission' command should have 3 floating point arguments.";
             
-            if (!std::all_of(command.params.begin(), command.params.end(), isFloatingPoint))
-                return std::nullopt;
-            
-            currentMaterial.emission.red = std::stor(command.params[0]);
-            currentMaterial.emission.green = std::stor(command.params[1]);
-            currentMaterial.emission.blue = std::stor(command.params[2]);
+            currentMaterial.emission.red = std::stor(params[0]);
+            currentMaterial.emission.green = std::stor(params[1]);
+            currentMaterial.emission.blue = std::stor(params[2]);
         }
         else if (command.name == "shininess")
         {
-            if (command.params.size() != 1)
-                return std::nullopt;
-            
-            if (!isFloatingPoint(command.params.front()))
-                return std::nullopt;
+            if (command.params.size() != 1 || !isFloatingPoint(command.params.front()))
+                return "'shininess' command should have 1 floating point argument.";
             
             currentMaterial.shininess = std::stor(command.params.front());
         }
         else
         {
-            return std::nullopt;
+            return "Unknown command entered.";
         }
 
         firstCommand = false;

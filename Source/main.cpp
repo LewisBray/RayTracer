@@ -6,31 +6,34 @@
 
 #include <iostream>
 #include <sstream>
+#include <variant>
 
 int main(const int argc, const char* const argv[])
 {
     if (argc < 2)
     {
-        std::cout << "Specify an input file" << std::endl;
+        std::cout << "Specify an input file." << std::endl;
         return -1;
     }
     
-    const auto fileInfo = parseInputFile(argv[1]);
-    if (!fileInfo.has_value())
+    const std::variant<FileInfo, const char*> fileParsingResult = parseInputFile(argv[1]);
+    if (std::holds_alternative<const char*>(fileParsingResult))
     {
-        std::cout << "Failed to parse input file" << std::endl;
+        const char* const errorMessage = std::get<const char*>(fileParsingResult);
+        std::cout << "Failed to parse input file.  " << errorMessage << std::endl;
         return -1;
     }
 
+    const FileInfo& fileInfo = std::get<FileInfo>(fileParsingResult);
     std::cout << "File info:" << std::endl;
-    const Image& image = fileInfo->image;
+    const Image& image = fileInfo.image;
     std::cout
         << "Image: \n\tfilename - " << image.filename
         << "\n\twidth - " << image.width
         << "\n\theight - " << image.height
         << std::endl;
     
-    const Camera& camera = fileInfo->camera;
+    const Camera& camera = fileInfo.camera;
     std::cout
         << "Camera: \n\teye - " << camera.eye
         << "\n\tlook at - " << camera.lookAt
@@ -44,7 +47,7 @@ int main(const int argc, const char* const argv[])
         return ss.str();
     };
     
-    const Scene& scene = fileInfo->scene;
+    const Scene& scene = fileInfo.scene;
     std::cout << "Triangles:\n";
     for (std::size_t i = 0; i < scene.triangles.size(); ++i)
     {
@@ -60,7 +63,7 @@ int main(const int argc, const char* const argv[])
         std::cout << '\t' << sphere.centre << ", " << sphere.radius << ": " << toString(ambient) << std::endl;
     }
     
-    std::cout << "Max recursion depth:\n\t" << fileInfo->maxRecursionDepth << std::endl;
+    std::cout << "Max recursion depth:\n\t" << fileInfo.maxRecursionDepth << std::endl;
 
 
     // const Triangle triangle{{0.5, -0.5, 0.0, 1.0}, {0.0, 0.5, 0.0, 1.0}, {-0.5, -0.5, 0.0, 1.0}};
