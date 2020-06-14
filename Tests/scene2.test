@@ -1,0 +1,76 @@
+# Test Scene 2
+
+size 640 480 
+
+camera -2 -2 -2 0 0 0 -1 -1 2 60
+
+# Now specify the geometry.
+
+maxverts 8
+
+vertex -1 -1 -1
+vertex +1 -1 -1
+vertex +1 +1 -1
+vertex -1 +1 -1
+vertex -1 -1 +1
+vertex +1 -1 +1
+vertex +1 +1 +1
+vertex -1 +1 +1
+
+# Define the cube.
+
+ambient .5 0 .5 
+# face -Y
+tri 0 1 5 
+tri 0 5 4 
+ambient .5 1 .5 
+# face +Y
+tri 3 7 6
+tri 3 6 2
+ambient 1 .5 .5 
+# face +X
+tri 1 2 6
+tri 1 6 5 
+ambient 0 .5 .5 
+# face -X
+tri 0 7 3 
+tri 0 4 7 
+ambient .5 .5 0
+# face -Z
+tri 0 3 2 
+tri 0 2 1
+ambient .5 .5 1
+# face +Z
+tri 4 5 6 
+tri 4 6 7 
+
+# Make spheres
+
+ambient 1 1 1
+
+sphere 1 0 0 0.15
+
+sphere -.5 1 -.5 0.15
+sphere +.5 1 +.5 0.15
+
+sphere 0 0 1 0.15
+sphere -.5 -.5 1 0.15
+sphere +.5 +.5 1 0.15
+
+sphere -1 -.5 -.5 0.15
+sphere -1 -.5 +.5 0.15
+sphere -1 +.5 +.5 0.15
+sphere -1 +.5 -.5 0.15
+
+sphere -.5 -1 -.5 0.15
+sphere -.5 -1 +.5 0.15
+sphere +.5 -1 +.5 0.15
+sphere +.5 -1 -.5 0.15
+sphere  0 -1 0 0.15
+
+sphere -.5 -.5 -1 0.15
+sphere -.5   0 -1 0.15
+sphere -.5 +.5 -1 0.15
+sphere +.5 -.5 -1 0.15
+sphere +.5   0 -1 0.15
+sphere +.5 +.5 -1 0.15 

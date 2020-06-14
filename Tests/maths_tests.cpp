@@ -182,17 +182,6 @@ TEST_CASE("Vector", "[Vector]")
     }
 }
 
-
-static bool areEqual(const Matrix& lhs, const Matrix& rhs) noexcept
-{
-    for (std::size_t row = 0; row < 4; ++row)
-        for (std::size_t column = 0; column < 4; ++column)
-            if (!areEqual(lhs[row][column], rhs[row][column]))
-                return false;
-    
-    return true;
-}
-
 TEST_CASE("Matrix", "[Matrix]")
 {
     SECTION("scalingMatrix")
