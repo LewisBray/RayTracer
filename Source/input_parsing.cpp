@@ -219,7 +219,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
                 return "'popTransform' command does not take any parameters";
             
             if (transformStack.empty())
-                return "Cannot perform 'popTransform' cas there are no transforms on the stack.";
+                return "Cannot perform 'popTransform' as there are no transforms on the stack.";
 
             assert(!inverseTransformStack.empty());
             currentTransform = transformStack.top();
@@ -245,7 +245,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'scale' command should have 3 floating point arguments.";
+                return "'scale' command should have 3 floating point parameters.";
             
             const real xScale = std::stor(params[0]);
             const real yScale = std::stor(params[1]);
@@ -259,7 +259,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 4 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'rotate' command should have 4 floating point arguments.";
+                return "'rotate' command should have 4 floating point parameters.";
             
             const real axisX = std::stor(params[0]);
             const real axisY = std::stor(params[1]);
@@ -320,7 +320,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'attenuation' command should have 3 floating point arguments.";
+                return "'attenuation' command should have 3 floating point parameters.";
             
             if (!scene.directionalLightSource.has_value())
             {
@@ -339,7 +339,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'ambient' command should have 3 floating point arguments.";
+                return "'ambient' command should have 3 floating point parameters.";
             
             currentAmbient.red = std::stor(params[0]);
             currentAmbient.green = std::stor(params[1]);
@@ -349,7 +349,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'diffuse' command should have 3 floating point arguments.";
+                return "'diffuse' command should have 3 floating point parameters.";
             
             currentMaterial.diffuse.red = std::stor(params[0]);
             currentMaterial.diffuse.green = std::stor(params[1]);
@@ -359,7 +359,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'specular' command should have 3 floating point arguments.";
+                return "'specular' command should have 3 floating point parameters.";
             
             currentMaterial.specular.red = std::stor(params[0]);
             currentMaterial.specular.green = std::stor(params[1]);
@@ -369,7 +369,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), isFloatingPoint))
-                return "'emission' command should have 3 floating point arguments.";
+                return "'emission' command should have 3 floating point parameters.";
             
             currentMaterial.emission.red = std::stor(params[0]);
             currentMaterial.emission.green = std::stor(params[1]);
@@ -378,7 +378,7 @@ std::variant<FileInfo, const char*> parseInputFile(const char* const filename)
         else if (command.name == "shininess")
         {
             if (command.params.size() != 1 || !isFloatingPoint(command.params.front()))
-                return "'shininess' command should have 1 floating point argument.";
+                return "'shininess' command should have 1 floating point parameter.";
             
             currentMaterial.shininess = std::stor(command.params.front());
         }
