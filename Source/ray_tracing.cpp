@@ -43,12 +43,12 @@ std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept
     const real b = 2 * ray.direction * sphereCentreToRayStart;
     const real c = sphereCentreToRayStart * sphereCentreToRayStart - sphere.radius * sphere.radius;
     
-    const real determinant = b * b - 4 * a * c;
-    if (lessThan(determinant, 0.0))
+    const real discriminant = b * b - 4 * a * c;
+    if (lessThan(discriminant, 0.0))
         return std::nullopt;
     
-    const real intersectionDistance1 = (-b - std::sqrt(determinant)) / 2.0 * a;
-    const real intersectionDistance2 = intersectionDistance1 + std::sqrt(determinant) / a;
+    const real intersectionDistance1 = (-b - std::sqrt(discriminant)) / 2.0 * a;
+    const real intersectionDistance2 = intersectionDistance1 + std::sqrt(discriminant) / a;
 
     const bool intersectionDistance1isNegative = lessThan(intersectionDistance1, 0.0);
     const bool intersectionDistance2IsNegative = lessThan(intersectionDistance2, 0.0);
