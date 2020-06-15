@@ -120,7 +120,7 @@ static bool pathIsBlocked(const Vector& start, const PointLightSource& light, co
     for (const Triangle& triangle : scene.triangles)
     {
         const std::optional<real> intersectionDistance = intersect(ray, triangle);
-        if (intersectionDistance.has_value() && !areEqual(intersectionDistance.value(), 0.0) && intersectionDistance.value() < distanceToDestination)
+        if (intersectionDistance.has_value() && !areEqual(intersectionDistance.value(), 0.0) && lessThan(intersectionDistance.value(), distanceToDestination))
             return true;
     }
 
@@ -135,7 +135,7 @@ static bool pathIsBlocked(const Vector& start, const PointLightSource& light, co
             const Vector transformedIntersectionPoint = transformedRay.start + transformedIntersectionDistance.value() * transformedRay.direction;
             const Vector intersectionPoint = ellipsoidTransform * transformedIntersectionPoint;
             const real intersectionDistance = magnitude(intersectionPoint - ray.start);
-            if (!areEqual(intersectionDistance, 0.0) && intersectionDistance < distanceToDestination)
+            if (!areEqual(intersectionDistance, 0.0) && lessThan(intersectionDistance, distanceToDestination))
                 return true;
         }
     }
@@ -201,7 +201,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) no
     for (std::size_t i = 0; i < scene.triangles.size(); ++i)
     {
         const std::optional<real> intersectionDistance = intersect(ray, scene.triangles[i]);
-        if (intersectionDistance.has_value() && intersectionDistance.value() < closestTriangleIntersectionDistance)
+        if (intersectionDistance.has_value() && lessThan(intersectionDistance.value(), closestTriangleIntersectionDistance))
         {
             closestIntersectingTriangleIndex = i;
             closestTriangleIntersectionDistance = intersectionDistance.value();
@@ -221,7 +221,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) no
             const Vector transformedIntersectionPoint = transformedRay.start + transformedIntersectionDistance.value() * transformedRay.direction;
             const Vector intersectionPoint = ellipsoidTransform * transformedIntersectionPoint;
             const real intersectionDistance = magnitude(intersectionPoint - ray.start);
-            if (intersectionDistance < closestEllipsoidIntersectionDistance)
+            if (lessThan(intersectionDistance, closestEllipsoidIntersectionDistance))
             {
                 closestIntersectingEllipsoidIndex = i;
                 closestEllipsoidIntersectionDistance = intersectionDistance;
@@ -238,7 +238,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) no
         Material material{};
         Vector surfaceNormal{};
         Vector intersectionPoint{};
-        if (closestTriangleIntersectionDistance < closestEllipsoidIntersectionDistance)
+        if (lessThan(closestTriangleIntersectionDistance, closestEllipsoidIntersectionDistance))
         {
             assert(closestIntersectingTriangleIndex.has_value());
             const std::size_t index = closestIntersectingTriangleIndex.value();
