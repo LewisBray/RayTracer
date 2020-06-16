@@ -95,6 +95,11 @@ static Colour operator*(const real scalar, const Colour& colour) noexcept
     return Colour{scalar * colour.red, scalar * colour.green, scalar * colour.blue};
 }
 
+static Colour operator*(const Colour& lhs, const Colour& rhs) noexcept
+{
+    return Colour{lhs.red * rhs.red, lhs.green * rhs.green, lhs.blue * rhs.blue};
+}
+
 static real intensity(const Colour& colour) noexcept
 {
     return (colour.red + colour.green + colour.blue) / 3.0;
@@ -192,7 +197,7 @@ Ray rayThroughPixel(const Camera& camera, const int x, const int y, const Image&
     return Ray{camera.eye, rayDirection};
 }
 
-Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) noexcept
+Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye, const int recursionCount) noexcept
 {
     constexpr real infinity = std::numeric_limits<real>::infinity();
 
@@ -229,85 +234,97 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) no
         }
     }
 
-    Colour colour{0.0, 0.0, 0.0};
-    if (closestIntersectingTriangleIndex.has_value() || closestIntersectingEllipsoidIndex.has_value())
+    const bool rayIntersectedWithShape = (closestIntersectingTriangleIndex.has_value() || closestIntersectingEllipsoidIndex.has_value());
+    if (!rayIntersectedWithShape)
+        return Colour{0.0, 0.0, 0.0};
+
+    assert(closestTriangleIntersectionDistance < infinity || closestEllipsoidIntersectionDistance < infinity);
+    
+    Colour ambient{};
+    Material material{};
+    Vector surfaceNormal{};
+    Vector intersectionPoint{};
+    if (lessThan(closestTriangleIntersectionDistance, closestEllipsoidIntersectionDistance))
     {
-        assert(closestTriangleIntersectionDistance < infinity || closestEllipsoidIntersectionDistance < infinity);
+        assert(closestIntersectingTriangleIndex.has_value());
+        const std::size_t index = closestIntersectingTriangleIndex.value();
         
-        Colour ambient{};
-        Material material{};
-        Vector surfaceNormal{};
-        Vector intersectionPoint{};
-        if (lessThan(closestTriangleIntersectionDistance, closestEllipsoidIntersectionDistance))
+        intersectionPoint = ray.start + closestTriangleIntersectionDistance * ray.direction;
+        
+        assert(index < scene.triangles.size());
+        const Triangle& triangle = scene.triangles[index];
+        surfaceNormal = unitSurfaceNormal(triangle);
+        
+        ambient = scene.triangleAmbients[index];
+        material = scene.triangleMaterials[index];
+    }
+    else // ellipsoid is closer
+    {
+        assert(closestIntersectingEllipsoidIndex.has_value());
+        const std::size_t index = closestIntersectingEllipsoidIndex.value();
+        
+        intersectionPoint = ray.start + closestEllipsoidIntersectionDistance * ray.direction;
+        
+        assert(index < scene.ellipsoids.size());
+        const Ellipsoid& ellipsoid = scene.ellipsoids[index];
+        const Matrix& ellipsoidTransform = scene.ellipsoidTransforms[index];
+        surfaceNormal = unitSurfaceNormal(ellipsoid, ellipsoidTransform, intersectionPoint);
+        
+        ambient = scene.ellipsoidAmbients[index];
+        material = scene.ellipsoidMaterials[index];
+    }
+
+    Colour colour = ambient + material.emission;
+
+    if (scene.directionalLightSource.has_value())
+    {
+        const DirectionalLightSource& directionalLightSource = scene.directionalLightSource.value();
+        if (!pathIsBlocked(intersectionPoint, directionalLightSource, scene))
         {
-            assert(closestIntersectingTriangleIndex.has_value());
-            const std::size_t index = closestIntersectingTriangleIndex.value();
-            
-            intersectionPoint = ray.start + closestTriangleIntersectionDistance * ray.direction;
-            
-            assert(index < scene.triangles.size());
-            const Triangle& triangle = scene.triangles[index];
-            surfaceNormal = unitSurfaceNormal(triangle);
-            
-            ambient = scene.triangleAmbients[index];
-            material = scene.triangleMaterials[index];
-        }
-        else // ellipsoid is closer
-        {
-            assert(closestIntersectingEllipsoidIndex.has_value());
-            const std::size_t index = closestIntersectingEllipsoidIndex.value();
-            
-            intersectionPoint = ray.start + closestEllipsoidIntersectionDistance * ray.direction;
-            
-            assert(index < scene.ellipsoids.size());
-            const Ellipsoid& ellipsoid = scene.ellipsoids[index];
-            const Matrix& ellipsoidTransform = scene.ellipsoidTransforms[index];
-            surfaceNormal = unitSurfaceNormal(ellipsoid, ellipsoidTransform, intersectionPoint);
-            
-            ambient = scene.ellipsoidAmbients[index];
-            material = scene.ellipsoidMaterials[index];
-        }
+            const Vector directionToLight = directionalLightSource.direction;
 
-        colour = ambient + material.emission;
+            const Colour diffuseContribution =
+                std::max(surfaceNormal * directionToLight, 0.0) * material.diffuse;
 
-        if (scene.directionalLightSource.has_value())
-        {
-            const DirectionalLightSource& directionalLightSource = scene.directionalLightSource.value();
-            if (!pathIsBlocked(intersectionPoint, directionalLightSource, scene))
-            {
-                const Vector directionToLight = directionalLightSource.direction;
+            const Vector halfAngle = normalise(cameraEye + directionToLight);
+            const Colour specularContribution =
+                std::pow(std::max(surfaceNormal * halfAngle, 0.0), material.shininess) * material.specular;
 
-                const Colour diffuseContribution =
-                    std::max(surfaceNormal * directionToLight, 0.0) * material.diffuse;
-
-                const Vector halfAngle = normalise(cameraEye + directionToLight);
-                const Colour specularContribution =
-                    std::pow(std::max(surfaceNormal * halfAngle, 0.0), material.shininess) * material.specular;
-
-                colour += intensity(directionalLightSource.colour) * (diffuseContribution + specularContribution);
-            }
-        }
-
-        for (const PointLightSource& light : scene.pointLightSources)
-        {
-            if (!pathIsBlocked(intersectionPoint, light, scene))
-            {
-                const Vector intersectionPointToLight = light.position - intersectionPoint;
-                const real distanceToLight = magnitude(intersectionPointToLight);
-                const Vector directionToLight = intersectionPointToLight / distanceToLight;
-
-                const Colour diffuseContribution = std::max(surfaceNormal * directionToLight, 0.0) * material.diffuse;
-
-                const Vector halfAngle = normalise(cameraEye + directionToLight);
-                const Colour specularContribution =
-                    std::pow(std::max(surfaceNormal * halfAngle, 0.0), material.shininess) * material.specular;
-
-                colour += intensity(light.colour) *
-                    attenuation(light.attenuationParameters, distanceToLight) *
-                    (diffuseContribution + specularContribution);
-            }
+            colour += intensity(directionalLightSource.colour) * (diffuseContribution + specularContribution);
         }
     }
 
-    return colour;
+    for (const PointLightSource& light : scene.pointLightSources)
+    {
+        if (!pathIsBlocked(intersectionPoint, light, scene))
+        {
+            const Vector intersectionPointToLight = light.position - intersectionPoint;
+            const real distanceToLight = magnitude(intersectionPointToLight);
+            const Vector directionToLight = intersectionPointToLight / distanceToLight;
+
+            const Colour diffuseContribution = std::max(surfaceNormal * directionToLight, 0.0) * material.diffuse;
+
+            const Vector halfAngle = normalise(cameraEye + directionToLight);
+            const Colour specularContribution =
+                std::pow(std::max(surfaceNormal * halfAngle, 0.0), material.shininess) * material.specular;
+
+            colour += intensity(light.colour) *
+                attenuation(light.attenuationParameters, distanceToLight) *
+                (diffuseContribution + specularContribution);
+        }
+    }
+
+    if (recursionCount > 1 && !areEqual(material.specular.red, 0.0) && !areEqual(material.specular.green, 0.0) && !areEqual(material.specular.blue, 0.0))
+    {
+        surfaceNormal = homogenise(surfaceNormal);
+        const Matrix rotateAboutNormal = rotationMatrix(180.0, surfaceNormal.x, surfaceNormal.y, surfaceNormal.z);
+        Ray reflectedRay = transformRay(rotateAboutNormal, ray);
+        reflectedRay.start = intersectionPoint;
+
+        return colour + material.specular * intersect(reflectedRay, scene, cameraEye, recursionCount - 1);
+    }
+    else
+    {
+        return colour;
+    }
 }

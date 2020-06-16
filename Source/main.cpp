@@ -63,7 +63,8 @@ int main(const int argc, const char* const argv[])
         std::cout << '\t' << sphere.centre << ", " << sphere.radius << ": " << toString(ambient) << std::endl;
     }
     
-    std::cout << "Max recursion depth:\n\t" << fileInfo.maxRecursionDepth << std::endl;
+    const int maxRecursionDepth = fileInfo.maxRecursionDepth;
+    std::cout << "Max recursion depth:\n\t" << maxRecursionDepth << std::endl;
 
 
     // const Triangle triangle{{0.5, -0.5, 0.0, 1.0}, {0.0, 0.5, 0.0, 1.0}, {-0.5, -0.5, 0.0, 1.0}};
@@ -79,7 +80,7 @@ int main(const int argc, const char* const argv[])
         for (int x = 0; x < image.width; ++x)
         {
             const Ray ray = rayThroughPixel(camera, x, y, image);
-            const Colour colour = intersect(ray, scene, camera.eye);
+            const Colour colour = intersect(ray, scene, camera.eye, maxRecursionDepth);
             unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
             pixel[0] = static_cast<unsigned char>(colour.blue * 255);
             pixel[1] = static_cast<unsigned char>(colour.green * 255);
