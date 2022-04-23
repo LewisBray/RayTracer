@@ -1,6 +1,6 @@
 ray_tracer: maths.o ray_tracing.o input_parsing.o main.o
 	clang maths.o ray_tracing.o input_parsing.o main.o \
-		-o ray_tracer -std=c++1z -g -lfreeimage -lm -lstdc++
+		-o ray_tracer -std=c++1z -g -lm -lstdc++
 
 maths.o: maths.h maths.cpp
 	clang -c maths.cpp -std=c++1z -g

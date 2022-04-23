@@ -1,5 +1,3 @@
-#include "./FreeImage/Source/FreeImage.h"
-
 #include "input_parsing.h"
 #include "ray_tracing.h"
 #include "maths.h"
@@ -7,6 +5,9 @@
 #include <iostream>
 #include <sstream>
 #include <variant>
+
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "include/stb_image_write.h"
 
 int main(const int argc, const char* const argv[])
 {
@@ -81,17 +82,13 @@ int main(const int argc, const char* const argv[])
             const Ray ray = rayThroughPixel(camera, x, y, image);
             const Colour colour = intersect(ray, scene, camera.eye);
             unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
-            pixel[0] = static_cast<unsigned char>(colour.blue * 255);
+            pixel[0] = static_cast<unsigned char>(colour.red * 255);
             pixel[1] = static_cast<unsigned char>(colour.green * 255);
-            pixel[2] = static_cast<unsigned char>(colour.red * 255);
+            pixel[2] = static_cast<unsigned char>(colour.blue * 255);
         }
     }
 
-    FreeImage_Initialise();
-    FIBITMAP* bitmap = FreeImage_ConvertFromRawBits(image.pixels, image.width,
-        image.height, image.width * 3, 8 * 3, 0xFF0000, 0x00FF00, 0x0000FF, true);
-    FreeImage_Save(FIF_PNG, bitmap, image.filename.c_str(), 0);
-    FreeImage_DeInitialise();
+    stbi_write_png(image.filename.c_str(), image.width, image.height, 3, image.pixels, 3 * image.width);
     
     return 0;
 }
