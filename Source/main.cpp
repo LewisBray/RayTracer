@@ -9,63 +9,57 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "include/stb_image_write.h"
 
-int main(const int argc, const char* const argv[])
-{
-    if (argc < 2)
-    {
+int main(const int argc, const char* const argv[]) {
+    if (argc < 2) {
         std::cout << "Specify an input file." << std::endl;
         return -1;
     }
     
-    const std::variant<FileInfo, const char*> fileParsingResult = parseInputFile(argv[1]);
-    if (std::holds_alternative<const char*>(fileParsingResult))
-    {
-        const char* const errorMessage = std::get<const char*>(fileParsingResult);
-        std::cout << "Failed to parse input file.  " << errorMessage << std::endl;
+    const std::variant<FileInfo, const char*> file_parsing_result = parse_input_file(argv[1]);
+    if (std::holds_alternative<const char*>(file_parsing_result)) {
+        const char* const error_message = std::get<const char*>(file_parsing_result);
+        std::cout << "Failed to parse input file.  " << error_message << std::endl;
         return -1;
     }
 
-    const FileInfo& fileInfo = std::get<FileInfo>(fileParsingResult);
+    const FileInfo& file_info = std::get<FileInfo>(file_parsing_result);
     std::cout << "File info:" << std::endl;
-    const Image& image = fileInfo.image;
+    const Image& image = file_info.image;
     std::cout
         << "Image: \n\tfilename - " << image.filename
         << "\n\twidth - " << image.width
         << "\n\theight - " << image.height
         << std::endl;
     
-    const Camera& camera = fileInfo.camera;
+    const Camera& camera = file_info.camera;
     std::cout
         << "Camera: \n\teye - " << camera.eye
-        << "\n\tlook at - " << camera.lookAt
+        << "\n\tlook at - " << camera.look_at
         << "\n\tup - " << camera.up
-        << "\n\tfield of view - (" << camera.fieldOfView.x << ", " << camera.fieldOfView.y << ')'
+        << "\n\tfield of view - (" << camera.field_of_view.x << ", " << camera.field_of_view.y << ')'
         << std::endl;
     
-    constexpr auto toString = [](const Colour& colour) {
+    constexpr auto to_string = [](const Colour& colour) {
         std::stringstream ss;
         ss << '(' << colour.red << ", " << colour.green << ", " << colour.blue << ')';
         return ss.str();
     };
     
-    const Scene& scene = fileInfo.scene;
+    const Scene& scene = file_info.scene;
     std::cout << "Triangles:\n";
-    for (std::size_t i = 0; i < scene.triangles.size(); ++i)
-    {
+    for (std::size_t i = 0; i < scene.triangles.size(); ++i) {
         const Triangle& triangle = scene.triangles[i];
-        const Colour& ambient = scene.triangleAmbients[i];
-        std::cout << '\t' << triangle.a << ", " << triangle.b << ", " << triangle.c << ": " << toString(ambient) << std::endl;
+        const Colour& ambient = scene.triangle_ambients[i];
+        std::cout << '\t' << triangle.a << ", " << triangle.b << ", " << triangle.c << ": " << to_string(ambient) << std::endl;
     }
     std::cout << "Ellipsoids:\n";
-    for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i)
-    {
+    for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Sphere& sphere = scene.ellipsoids[i].sphere;
-        const Colour& ambient = scene.ellipsoidAmbients[i];
-        std::cout << '\t' << sphere.centre << ", " << sphere.radius << ": " << toString(ambient) << std::endl;
+        const Colour& ambient = scene.ellipsoid_ambients[i];
+        std::cout << '\t' << sphere.centre << ", " << sphere.radius << ": " << to_string(ambient) << std::endl;
     }
     
-    std::cout << "Max recursion depth:\n\t" << fileInfo.maxRecursionDepth << std::endl;
-
+    std::cout << "Max recursion depth:\n\t" << file_info.max_recursion_depth << std::endl;
 
     // const Triangle triangle{{0.5, -0.5, 0.0, 1.0}, {0.0, 0.5, 0.0, 1.0}, {-0.5, -0.5, 0.0, 1.0}};
     // const Ray ray{{0.0, 0.0, 5.0, 1.0}, {0.0, 0.05, 3.0, 1.0}};
@@ -75,11 +69,9 @@ int main(const int argc, const char* const argv[])
     // else
     //     std::cout << "No intersection" << std::endl;
 
-    for (int y = 0; y < image.height; ++y)
-    {
-        for (int x = 0; x < image.width; ++x)
-        {
-            const Ray ray = rayThroughPixel(camera, x, y, image);
+    for (int y = 0; y < image.height; ++y) {
+        for (int x = 0; x < image.width; ++x) {
+            const Ray ray = ray_through_pixel(camera, x, y, image);
             const Colour colour = intersect(ray, scene, camera.eye);
             unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
             pixel[0] = static_cast<unsigned char>(colour.red * 255);

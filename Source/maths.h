@@ -8,14 +8,13 @@
 #define stor stod
 
 constexpr real pi = 3.14159265358979323846264;
-real toRadians(real angleInDegrees) noexcept;
+real to_radians(real angle_in_degrees) noexcept;
 
-bool areEqual(real x, real y) noexcept;
-bool lessThan(real x, real y) noexcept;
-bool greaterThan(real x, real y) noexcept;
+bool are_equal(real x, real y) noexcept;
+bool less_than(real x, real y) noexcept;
+bool greater_than(real x, real y) noexcept;
 
-struct Vector
-{
+struct Vector {
     real x;
     real y;
     real z;
@@ -37,32 +36,29 @@ using Matrix = std::array<std::array<real, 4>, 4>;
 
 Vector operator*(const Matrix& m, const Vector& v) noexcept;
 Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept;
-Matrix identityMatrix() noexcept;
-Matrix scalingMatrix(real xScale, real yScale, real zScale) noexcept;
-Matrix translationMatrix(real xOffset, real yOffset, real zOffset) noexcept;
-Matrix rotationMatrix(real angle, real axisX, real axisY, real axisZ) noexcept;
+Matrix identity_matrix() noexcept;
+Matrix scaling_matrix(real x_scale, real y_scale, real z_scale) noexcept;
+Matrix translation_matrix(real x_offset, real y_offset, real z_offset) noexcept;
+Matrix rotation_matrix(real angle, real axis_x, real axis_y, real axis_z) noexcept;
 
-struct Triangle
-{
+struct Triangle {
     Vector a;
     Vector b;
     Vector c;
 };
 
-struct Sphere
-{
+struct Sphere {
     Vector centre;
     real radius;
 };
 
-struct Ellipsoid
-{
+struct Ellipsoid {
     Sphere sphere;
-    Matrix inverseTransform;
+    Matrix inverse_transform;
 };
 
-Vector unitSurfaceNormal(const Triangle& triangle) noexcept;
-Vector unitSurfaceNormal(const Sphere& sphere, const Vector& point) noexcept;
-Vector unitSurfaceNormal(const Ellipsoid& ellipsoid, const Matrix& ellipsoidTransform, const Vector& point) noexcept;
+Vector unit_surface_normal(const Triangle& triangle) noexcept;
+Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noexcept;
+Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Matrix& ellipsoid_transform, const Vector& point) noexcept;
 
 #endif

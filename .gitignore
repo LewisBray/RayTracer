@@ -1,0 +1,9 @@
+
+Source/*.o
+Source/*.test
+Source/*.png
+Source/ray_tracer
+Tests/*.o
+Tests/input_parsing_tests
+Tests/maths_tests
+Tests/ray_tracing_tests

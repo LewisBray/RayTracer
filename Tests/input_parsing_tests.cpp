@@ -4,61 +4,52 @@
 #include "../Source/input_parsing.h"
 #include "test_utils.h"
 
-static bool areEqual(const Triangle& lhs, const Triangle& rhs) noexcept
-{
-    return areEqual(lhs.a, rhs.a) && areEqual(lhs.b, rhs.b) && areEqual(lhs.c, rhs.c);
+static bool are_equal(const Triangle& lhs, const Triangle& rhs) noexcept {
+    return are_equal(lhs.a, rhs.a) && are_equal(lhs.b, rhs.b) && are_equal(lhs.c, rhs.c);
 }
 
-static bool areEqual(const Colour& lhs, const Colour& rhs) noexcept
-{
-    return areEqual(lhs.red, rhs.red) && areEqual(lhs.green, rhs.green) && areEqual(lhs.blue, rhs.blue);
+static bool are_equal(const Colour& lhs, const Colour& rhs) noexcept {
+    return are_equal(lhs.red, rhs.red) && are_equal(lhs.green, rhs.green) && are_equal(lhs.blue, rhs.blue);
 }
 
-static bool areEqual(const Material& lhs, const Material& rhs) noexcept
-{
-    return areEqual(lhs.diffuse, rhs.diffuse) && areEqual(lhs.specular, rhs.specular) &&
-        areEqual(lhs.emission, rhs.emission) && areEqual(lhs.shininess, rhs.shininess);
+static bool are_equal(const Material& lhs, const Material& rhs) noexcept {
+    return are_equal(lhs.diffuse, rhs.diffuse) && are_equal(lhs.specular, rhs.specular) &&
+        are_equal(lhs.emission, rhs.emission) && are_equal(lhs.shininess, rhs.shininess);
 }
 
-static bool areEqual(const AttenuationParameters& lhs, const AttenuationParameters& rhs) noexcept
-{
-    return areEqual(lhs.constant, rhs.constant) &&
-        areEqual(lhs.linear, rhs.linear) && areEqual(lhs.quadratic, rhs.quadratic);
+static bool are_equal(const AttenuationParameters& lhs, const AttenuationParameters& rhs) noexcept {
+    return are_equal(lhs.constant, rhs.constant) && are_equal(lhs.linear, rhs.linear) && are_equal(lhs.quadratic, rhs.quadratic);
 }
 
-static bool areEqual(const Sphere& lhs, const Sphere& rhs) noexcept
-{
-    return areEqual(lhs.radius, rhs.radius) && areEqual(lhs.centre, rhs.centre);
+static bool are_equal(const Sphere& lhs, const Sphere& rhs) noexcept {
+    return are_equal(lhs.radius, rhs.radius) && are_equal(lhs.centre, rhs.centre);
 }
 
-static bool areEqual(const Ellipsoid& lhs, const Ellipsoid& rhs) noexcept
-{
-    return areEqual(lhs.sphere, rhs.sphere) && areEqual(lhs.inverseTransform, rhs.inverseTransform);
+static bool are_equal(const Ellipsoid& lhs, const Ellipsoid& rhs) noexcept {
+    return are_equal(lhs.sphere, rhs.sphere) && are_equal(lhs.inverse_transform, rhs.inverse_transform);
 }
 
-TEST_CASE("parseInputFile", "[parseInputFile]")
-{
-    SECTION("scene_1")
-    {
-        const std::variant<FileInfo, const char*> fileParsingResult = parseInputFile("./scene1.test");
-        REQUIRE(std::holds_alternative<FileInfo>(fileParsingResult));
+TEST_CASE("parse_input_file", "[parse_input_file]") {
+    SECTION("scene_1") {
+        const std::variant<FileInfo, const char*> file_parsing_result = parse_input_file("./scene1.test");
+        REQUIRE(std::holds_alternative<FileInfo>(file_parsing_result));
 
-        const FileInfo& fileInfo = std::get<FileInfo>(fileParsingResult);
+        const FileInfo& file_info = std::get<FileInfo>(file_parsing_result);
 
-        const Image& image = fileInfo.image;
+        const Image& image = file_info.image;
         REQUIRE(image.width == 640);
         REQUIRE(image.height == 480);
         REQUIRE(image.pixels != nullptr);
         REQUIRE(image.filename == "raytrace.png");
 
-        const Camera& camera = fileInfo.camera;
-        REQUIRE(areEqual(camera.eye, Vector{-4.0, -4.0, 4.0, 1.0}));
-        REQUIRE(areEqual(camera.lookAt, Vector{1.0, 0.0, 0.0, 1.0}));
-        REQUIRE(areEqual(camera.up, Vector{0.0, 1.0, 0.0, 1.0}));
-        REQUIRE(camera.fieldOfView.x == 40);
-        REQUIRE(camera.fieldOfView.y == 30);
+        const Camera& camera = file_info.camera;
+        REQUIRE(are_equal(camera.eye, Vector{-4.0, -4.0, 4.0, 1.0}));
+        REQUIRE(are_equal(camera.look_at, Vector{1.0, 0.0, 0.0, 1.0}));
+        REQUIRE(are_equal(camera.up, Vector{0.0, 1.0, 0.0, 1.0}));
+        REQUIRE(camera.field_of_view.x == 40);
+        REQUIRE(camera.field_of_view.y == 30);
 
-        const Scene& scene = fileInfo.scene;
+        const Scene& scene = file_info.scene;
 
         const std::array<Vector, 4> vertices {
             Vector{-1.0, -1.0, 0.0, 1.0},
@@ -67,74 +58,75 @@ TEST_CASE("parseInputFile", "[parseInputFile]")
             Vector{-1.0, 1.0, 0.0, 1.0}
         };
 
-        const std::array<Triangle, 2> expectedTriangles {
+        const std::array<Triangle, 2> expected_triangles {
             Triangle{vertices[0], vertices[1], vertices[2]},
             Triangle{vertices[0], vertices[2], vertices[3]}
         };
 
         const std::vector<Triangle>& triangles = scene.triangles;
-        REQUIRE(triangles.size() == expectedTriangles.size());
+        REQUIRE(triangles.size() == expected_triangles.size());
         for (std::size_t i = 0; i < triangles.size(); ++i)
-            REQUIRE(areEqual(triangles[i], expectedTriangles[i]));
+            REQUIRE(are_equal(triangles[i], expected_triangles[i]));
 
-        const Material expectedMaterial {
+        const Material expected_material {
             Colour{1.0, 0.0, 0.0},
             Colour{0.0, 0.0, 0.0},
             Colour{0.0, 0.0, 0.0},
             0.0
         };
 
-        const std::vector<Material>& triangleMaterials = scene.triangleMaterials;
-        REQUIRE(triangleMaterials.size() == expectedTriangles.size());
-        for (const Material& triangleMaterial : triangleMaterials)
-            REQUIRE(areEqual(triangleMaterial, expectedMaterial));
+        const std::vector<Material>& triangle_materials = scene.triangle_materials;
+        REQUIRE(triangle_materials.size() == expected_triangles.size());
+        for (const Material& triangle_material : triangle_materials) {
+            REQUIRE(are_equal(triangle_material, expected_material));
+        }
 
-        const Colour expectedAmbient{0.1, 0.1, 0.1};
+        const Colour expected_ambient{0.1, 0.1, 0.1};
 
-        const std::vector<Colour>& triangleAmbients = scene.triangleAmbients;
-        REQUIRE(triangleAmbients.size() == expectedTriangles.size());
-        for (const Colour& triangleAmbient : triangleAmbients)
-            REQUIRE(areEqual(triangleAmbient, expectedAmbient));
+        const std::vector<Colour>& triangle_ambients = scene.triangle_ambients;
+        REQUIRE(triangle_ambients.size() == expected_triangles.size());
+        for (const Colour& triangle_ambient : triangle_ambients) {
+            REQUIRE(are_equal(triangle_ambient, expected_ambient));
+        }
 
         REQUIRE(scene.ellipsoids.empty());
-        REQUIRE(scene.ellipsoidTransforms.empty());
-        REQUIRE(scene.ellipsoidMaterials.empty());
-        REQUIRE(scene.ellipsoidAmbients.empty());
+        REQUIRE(scene.ellipsoid_transforms.empty());
+        REQUIRE(scene.ellipsoid_materials.empty());
+        REQUIRE(scene.ellipsoid_ambients.empty());
 
-        REQUIRE(scene.directionalLightSource.has_value());
-        const DirectionalLightSource& directionalLightSource = scene.directionalLightSource.value();
-        REQUIRE(areEqual(directionalLightSource.direction, Vector{0.0, 0.0, 1.0, 1.0}));
-        REQUIRE(areEqual(directionalLightSource.colour, Colour{0.5, 0.5, 0.5}));
-        REQUIRE(areEqual(directionalLightSource.attenuationParameters, AttenuationParameters{1.0, 0.0, 0.0}));
+        REQUIRE(scene.directional_light_source.has_value());
+        const DirectionalLightSource& directional_light_source = scene.directional_light_source.value();
+        REQUIRE(are_equal(directional_light_source.direction, Vector{0.0, 0.0, 1.0, 1.0}));
+        REQUIRE(are_equal(directional_light_source.colour, Colour{0.5, 0.5, 0.5}));
+        REQUIRE(are_equal(directional_light_source.attenuation_parameters, AttenuationParameters{1.0, 0.0, 0.0}));
 
-        REQUIRE(scene.pointLightSources.size() == 1);
-        const PointLightSource& pointLightSource = scene.pointLightSources.front();
-        REQUIRE(areEqual(pointLightSource.position, Vector{4.0, 0.0, 4.0, 1.0}));
-        REQUIRE(areEqual(pointLightSource.colour, Colour{0.5, 0.5, 0.5}));
-        REQUIRE(areEqual(pointLightSource.attenuationParameters, AttenuationParameters{0.0, 0.0, 1.0}));
+        REQUIRE(scene.point_light_sources.size() == 1);
+        const PointLightSource& point_light_source = scene.point_light_sources.front();
+        REQUIRE(are_equal(point_light_source.position, Vector{4.0, 0.0, 4.0, 1.0}));
+        REQUIRE(are_equal(point_light_source.colour, Colour{0.5, 0.5, 0.5}));
+        REQUIRE(are_equal(point_light_source.attenuation_parameters, AttenuationParameters{0.0, 0.0, 1.0}));
     }
 
-    SECTION("scene_2")
-    {
-        const std::variant<FileInfo, const char*> fileParsingResult = parseInputFile("./scene2.test");
-        REQUIRE(std::holds_alternative<FileInfo>(fileParsingResult));
+    SECTION("scene_2") {
+        const std::variant<FileInfo, const char*> file_parsing_result = parse_input_file("./scene2.test");
+        REQUIRE(std::holds_alternative<FileInfo>(file_parsing_result));
 
-        const FileInfo& fileInfo = std::get<FileInfo>(fileParsingResult);
+        const FileInfo& file_info = std::get<FileInfo>(file_parsing_result);
 
-        const Image& image = fileInfo.image;
+        const Image& image = file_info.image;
         REQUIRE(image.width == 640);
         REQUIRE(image.height == 480);
         REQUIRE(image.pixels != nullptr);
         REQUIRE(image.filename == "raytrace.png");
 
-        const Camera& camera = fileInfo.camera;
-        REQUIRE(areEqual(camera.eye, Vector{-2.0, -2.0, -2.0, 1.0}));
-        REQUIRE(areEqual(camera.lookAt, Vector{0.0, 0.0, 0.0, 1.0}));
-        REQUIRE(areEqual(camera.up, Vector{-1.0, -1.0, 2.0, 1.0}));
-        REQUIRE(camera.fieldOfView.x == 80);
-        REQUIRE(camera.fieldOfView.y == 60);
+        const Camera& camera = file_info.camera;
+        REQUIRE(are_equal(camera.eye, Vector{-2.0, -2.0, -2.0, 1.0}));
+        REQUIRE(are_equal(camera.look_at, Vector{0.0, 0.0, 0.0, 1.0}));
+        REQUIRE(are_equal(camera.up, Vector{-1.0, -1.0, 2.0, 1.0}));
+        REQUIRE(camera.field_of_view.x == 80);
+        REQUIRE(camera.field_of_view.y == 60);
 
-        const Scene& scene = fileInfo.scene;
+        const Scene& scene = file_info.scene;
 
         const std::array<Vector, 8> vertices {
             Vector{-1.0, -1.0, -1.0, 1.0},
@@ -147,7 +139,7 @@ TEST_CASE("parseInputFile", "[parseInputFile]")
             Vector{-1.0, 1.0, 1.0, 1.0}
         };
 
-        const std::array<Triangle, 12> expectedTriangles {
+        const std::array<Triangle, 12> expected_triangles {
             Triangle{vertices[0], vertices[1], vertices[5]},
             Triangle{vertices[0], vertices[5], vertices[4]},
 
@@ -168,23 +160,25 @@ TEST_CASE("parseInputFile", "[parseInputFile]")
         };
 
         const std::vector<Triangle>& triangles = scene.triangles;
-        REQUIRE(triangles.size() == expectedTriangles.size());
-        for (std::size_t i = 0; i < triangles.size(); ++i)
-            REQUIRE(areEqual(triangles[i], expectedTriangles[i]));
+        REQUIRE(triangles.size() == expected_triangles.size());
+        for (std::size_t i = 0; i < triangles.size(); ++i) {
+            REQUIRE(are_equal(triangles[i], expected_triangles[i]));
+        }
 
-        const Material expectedMaterial {
+        const Material expected_material {
             Colour{0.0, 0.0, 0.0},
             Colour{0.0, 0.0, 0.0},
             Colour{0.0, 0.0, 0.0},
             0.0
         };
 
-        const std::vector<Material>& triangleMaterials = scene.triangleMaterials;
-        REQUIRE(triangleMaterials.size() == expectedTriangles.size());
-        for (const Material& triangleMaterial : triangleMaterials)
-            REQUIRE(areEqual(triangleMaterial, expectedMaterial));
+        const std::vector<Material>& triangle_materials = scene.triangle_materials;
+        REQUIRE(triangle_materials.size() == expected_triangles.size());
+        for (const Material& triangle_material : triangle_materials) {
+            REQUIRE(are_equal(triangle_material, expected_material));
+        }
 
-        const std::array<Colour, 12> expectedTriangleAmbients {
+        const std::array<Colour, 12> expected_triangle_ambients {
             Colour{0.5, 0.0, 0.5},
             Colour{0.5, 0.0, 0.5},
 
@@ -204,140 +198,146 @@ TEST_CASE("parseInputFile", "[parseInputFile]")
             Colour{0.5, 0.5, 1.0}
         };
 
-        const std::vector<Colour>& triangleAmbients = scene.triangleAmbients;
-        REQUIRE(triangleAmbients.size() == expectedTriangles.size());
-        for (std::size_t i = 0; i < triangleAmbients.size(); ++i)
-            REQUIRE(areEqual(triangleAmbients[i], expectedTriangleAmbients[i]));
+        const std::vector<Colour>& triangle_ambients = scene.triangle_ambients;
+        REQUIRE(triangle_ambients.size() == expected_triangles.size());
+        for (std::size_t i = 0; i < triangle_ambients.size(); ++i) {
+            REQUIRE(are_equal(triangle_ambients[i], expected_triangle_ambients[i]));
+        }
 
-        const std::array<Ellipsoid, 21> expectedEllipsoids {
-            Ellipsoid{Sphere{Vector{1.0, 0.0, 0.0, 1.0}, 0.15}, identityMatrix()},
+        const std::array<Ellipsoid, 21> expected_ellipsoids {
+            Ellipsoid{Sphere{Vector{1.0, 0.0, 0.0, 1.0}, 0.15}, identity_matrix()},
 
-            Ellipsoid{Sphere{Vector{-0.5, 1.0, -0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, 1.0, 0.5, 1.0}, 0.15}, identityMatrix()},
+            Ellipsoid{Sphere{Vector{-0.5, 1.0, -0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, 1.0, 0.5, 1.0}, 0.15}, identity_matrix()},
 
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-0.5, -0.5, 1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, 0.5, 1.0, 1.0}, 0.15}, identityMatrix()},
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-0.5, -0.5, 1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, 0.5, 1.0, 1.0}, 0.15}, identity_matrix()},
 
-            Ellipsoid{Sphere{Vector{-1.0, -0.5, -0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-1.0, -0.5, 0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-1.0, 0.5, 0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-1.0, 0.5, -0.5, 1.0}, 0.15}, identityMatrix()},
+            Ellipsoid{Sphere{Vector{-1.0, -0.5, -0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-1.0, -0.5, 0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-1.0, 0.5, 0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-1.0, 0.5, -0.5, 1.0}, 0.15}, identity_matrix()},
 
-            Ellipsoid{Sphere{Vector{-0.5, -1.0, -0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-0.5, -1.0, 0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, -1.0, 0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, -1.0, -0.5, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.0, -1.0, 0.0, 1.0}, 0.15}, identityMatrix()},
+            Ellipsoid{Sphere{Vector{-0.5, -1.0, -0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-0.5, -1.0, 0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, -1.0, 0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, -1.0, -0.5, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.0, -1.0, 0.0, 1.0}, 0.15}, identity_matrix()},
 
-            Ellipsoid{Sphere{Vector{-0.5, -0.5, -1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-0.5, 0.0, -1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{-0.5, 0.5, -1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, -0.5, -1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, 0.0, -1.0, 1.0}, 0.15}, identityMatrix()},
-            Ellipsoid{Sphere{Vector{0.5, 0.5, -1.0, 1.0}, 0.15}, identityMatrix()}
+            Ellipsoid{Sphere{Vector{-0.5, -0.5, -1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-0.5, 0.0, -1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{-0.5, 0.5, -1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, -0.5, -1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, 0.0, -1.0, 1.0}, 0.15}, identity_matrix()},
+            Ellipsoid{Sphere{Vector{0.5, 0.5, -1.0, 1.0}, 0.15}, identity_matrix()}
         };
 
         const std::vector<Ellipsoid>& ellipsoids = scene.ellipsoids;
-        REQUIRE(ellipsoids.size() == expectedEllipsoids.size());
-        for (std::size_t i = 0; i < ellipsoids.size(); ++i)
-            REQUIRE(areEqual(ellipsoids[i], expectedEllipsoids[i]));
+        REQUIRE(ellipsoids.size() == expected_ellipsoids.size());
+        for (std::size_t i = 0; i < ellipsoids.size(); ++i) {
+            REQUIRE(are_equal(ellipsoids[i], expected_ellipsoids[i]));
+        }
 
-        const std::vector<Matrix>& ellipsoidTransforms = scene.ellipsoidTransforms;
-        REQUIRE(ellipsoidTransforms.size() == expectedEllipsoids.size());
-        for (const Matrix& ellipsoidTransform : ellipsoidTransforms)
-            REQUIRE(areEqual(ellipsoidTransform, identityMatrix()));
+        const std::vector<Matrix>& ellipsoid_transforms = scene.ellipsoid_transforms;
+        REQUIRE(ellipsoid_transforms.size() == expected_ellipsoids.size());
+        for (const Matrix& ellipsoid_transform : ellipsoid_transforms) {
+            REQUIRE(are_equal(ellipsoid_transform, identity_matrix()));
+        }
 
-        const std::vector<Material>& ellipsoidMaterials = scene.ellipsoidMaterials;
-        for (const Material& ellipsoidMaterial : ellipsoidMaterials)
-            REQUIRE(areEqual(ellipsoidMaterial, expectedMaterial));
+        const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;
+        for (const Material& ellipsoid_material : ellipsoid_materials) {
+            REQUIRE(are_equal(ellipsoid_material, expected_material));
+        }
 
-        const Colour expectedEllipsoidAmbient{1.0, 1.0, 1.0};
+        const Colour expected_ellipsoid_ambient{1.0, 1.0, 1.0};
 
-        const std::vector<Colour>& ellipsoidAmbients = scene.ellipsoidAmbients;
-        REQUIRE(ellipsoidAmbients.size() == expectedEllipsoids.size());
-        for (const Colour& ellipsoidAmbient : ellipsoidAmbients)
-            REQUIRE(areEqual(ellipsoidAmbient, expectedEllipsoidAmbient));
+        const std::vector<Colour>& ellipsoid_ambients = scene.ellipsoid_ambients;
+        REQUIRE(ellipsoid_ambients.size() == expected_ellipsoids.size());
+        for (const Colour& ellipsoid_ambient : ellipsoid_ambients) {
+            REQUIRE(are_equal(ellipsoid_ambient, expected_ellipsoid_ambient));
+        }
 
-        REQUIRE(!scene.directionalLightSource.has_value());
-        REQUIRE(scene.pointLightSources.empty());
+        REQUIRE(!scene.directional_light_source.has_value());
+        REQUIRE(scene.point_light_sources.empty());
     }
 
-    SECTION("scene_3")
-    {
-        const std::variant<FileInfo, const char*> fileParsingResult = parseInputFile("./scene3.test");
-        REQUIRE(std::holds_alternative<FileInfo>(fileParsingResult));
+    SECTION("scene_3") {
+        const std::variant<FileInfo, const char*> file_parsing_result = parse_input_file("./scene3.test");
+        REQUIRE(std::holds_alternative<FileInfo>(file_parsing_result));
 
-        const FileInfo& fileInfo = std::get<FileInfo>(fileParsingResult);
+        const FileInfo& file_info = std::get<FileInfo>(file_parsing_result);
 
-        const Image& image = fileInfo.image;
+        const Image& image = file_info.image;
         REQUIRE(image.width == 640);
         REQUIRE(image.height == 480);
         REQUIRE(image.pixels != nullptr);
         REQUIRE(image.filename == "scene.png");
 
-        const Camera& camera = fileInfo.camera;
-        REQUIRE(areEqual(camera.eye, Vector{0.0, -4.0, 4.0, 1.0}));
-        REQUIRE(areEqual(camera.lookAt, Vector{0.0, -1.0, 0.0, 1.0}));
-        REQUIRE(areEqual(camera.up, Vector{0.0, 1.0, 1.0, 1.0}));
-        REQUIRE(camera.fieldOfView.x == 60);
-        REQUIRE(camera.fieldOfView.y == 45);
+        const Camera& camera = file_info.camera;
+        REQUIRE(are_equal(camera.eye, Vector{0.0, -4.0, 4.0, 1.0}));
+        REQUIRE(are_equal(camera.look_at, Vector{0.0, -1.0, 0.0, 1.0}));
+        REQUIRE(are_equal(camera.up, Vector{0.0, 1.0, 1.0, 1.0}));
+        REQUIRE(camera.field_of_view.x == 60);
+        REQUIRE(camera.field_of_view.y == 45);
 
-        const Scene& scene = fileInfo.scene;
+        const Scene& scene = file_info.scene;
 
         REQUIRE(scene.triangles.empty());
-        REQUIRE(scene.triangleMaterials.empty());
-        REQUIRE(scene.triangleAmbients.empty());
+        REQUIRE(scene.triangle_materials.empty());
+        REQUIRE(scene.triangle_ambients.empty());
 
-        const std::array<Matrix, 6> expectedEllipsoidTransforms {
-            translationMatrix(0.0, 0.0, 0.5) * rotationMatrix(45.0, 0.0, 0.0, 1.0) * scalingMatrix(1.0, 0.25, 0.25),
-            translationMatrix(0.0, 0.0, 0.5) * rotationMatrix(-45.0, 0.0, 0.0, 1.0) * scalingMatrix(1.0, 0.25, 0.25),
-            translationMatrix(-1.5, -0.8, 0.65) * scalingMatrix(0.4, 0.4, 0.4),
-            translationMatrix(1.5, -0.8, 0.65) * scalingMatrix(0.4, 0.4, 0.4),
-            translationMatrix(1.5, 0.8, 0.65) * scalingMatrix(0.4, 0.4, 0.4),
-            translationMatrix(-1.5, 0.8, 0.65) * scalingMatrix(0.4, 0.4, 0.4)
+        const std::array<Matrix, 6> expected_ellipsoid_transforms {
+            translation_matrix(0.0, 0.0, 0.5) * rotation_matrix(45.0, 0.0, 0.0, 1.0) * scaling_matrix(1.0, 0.25, 0.25),
+            translation_matrix(0.0, 0.0, 0.5) * rotation_matrix(-45.0, 0.0, 0.0, 1.0) * scaling_matrix(1.0, 0.25, 0.25),
+            translation_matrix(-1.5, -0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4),
+            translation_matrix(1.5, -0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4),
+            translation_matrix(1.5, 0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4),
+            translation_matrix(-1.5, 0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4)
         };
 
-        const std::array<Matrix, 6> expectedEllipsoidInverseTransforms {
-            scalingMatrix(1.0, 4.0, 4.0) * rotationMatrix(-45.0, 0.0, 0.0, 1.0) * translationMatrix(0.0, 0.0, -0.5),
-            scalingMatrix(1.0, 4.0, 4.0) * rotationMatrix(45.0, 0.0, 0.0, 1.0) * translationMatrix(0.0, 0.0, -0.5),
-            scalingMatrix(2.5, 2.5, 2.5) * translationMatrix(1.5, 0.8, -0.65),
-            scalingMatrix(2.5, 2.5, 2.5) * translationMatrix(-1.5, 0.8, -0.65),
-            scalingMatrix(2.5, 2.5, 2.5) * translationMatrix(-1.5, -0.8, -0.65),
-            scalingMatrix(2.5, 2.5, 2.5) * translationMatrix(1.5, -0.8, -0.65)
+        const std::array<Matrix, 6> expected_ellipsoid_inverse_transforms {
+            scaling_matrix(1.0, 4.0, 4.0) * rotation_matrix(-45.0, 0.0, 0.0, 1.0) * translation_matrix(0.0, 0.0, -0.5),
+            scaling_matrix(1.0, 4.0, 4.0) * rotation_matrix(45.0, 0.0, 0.0, 1.0) * translation_matrix(0.0, 0.0, -0.5),
+            scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(1.5, 0.8, -0.65),
+            scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(-1.5, 0.8, -0.65),
+            scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(-1.5, -0.8, -0.65),
+            scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(1.5, -0.8, -0.65)
         };
 
-        const std::array<Ellipsoid, 6> expectedEllipsoids {
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expectedEllipsoidInverseTransforms[0]},
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expectedEllipsoidInverseTransforms[1]},
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expectedEllipsoidInverseTransforms[2]},
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expectedEllipsoidInverseTransforms[3]},
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expectedEllipsoidInverseTransforms[4]},
-            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expectedEllipsoidInverseTransforms[5]}
+        const std::array<Ellipsoid, 6> expected_ellipsoids {
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expected_ellipsoid_inverse_transforms[0]},
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expected_ellipsoid_inverse_transforms[1]},
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expected_ellipsoid_inverse_transforms[2]},
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expected_ellipsoid_inverse_transforms[3]},
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expected_ellipsoid_inverse_transforms[4]},
+            Ellipsoid{Sphere{Vector{0.0, 0.0, 0.0, 1.0}, 1.0}, expected_ellipsoid_inverse_transforms[5]}
         };
 
         const std::vector<Ellipsoid>& ellipsoids = scene.ellipsoids;
-        REQUIRE(ellipsoids.size() == expectedEllipsoids.size());
-        for (std::size_t i = 0; i < ellipsoids.size(); ++i)
-            REQUIRE(areEqual(ellipsoids[i], expectedEllipsoids[i]));
+        REQUIRE(ellipsoids.size() == expected_ellipsoids.size());
+        for (std::size_t i = 0; i < ellipsoids.size(); ++i) {
+            REQUIRE(are_equal(ellipsoids[i], expected_ellipsoids[i]));
+        }
 
-        const std::vector<Matrix>& ellipsoidTransforms = scene.ellipsoidTransforms;
-        REQUIRE(ellipsoidTransforms.size() == expectedEllipsoidTransforms.size());
-        for (std::size_t i = 0; i < ellipsoidTransforms.size(); ++i)
-            REQUIRE(areEqual(ellipsoidTransforms[i], expectedEllipsoidTransforms[i]));
+        const std::vector<Matrix>& ellipsoid_transforms = scene.ellipsoid_transforms;
+        REQUIRE(ellipsoid_transforms.size() == expected_ellipsoid_transforms.size());
+        for (std::size_t i = 0; i < ellipsoid_transforms.size(); ++i) {
+            REQUIRE(are_equal(ellipsoid_transforms[i], expected_ellipsoid_transforms[i]));
+        }
 
-        const Material expectedMaterial {
+        const Material expected_material {
             Colour{0.0, 0.0, 0.0},
             Colour{0.0, 0.0, 0.0},
             Colour{0.0, 0.0, 0.0},
             0.0
         };
 
-        const std::vector<Material>& ellipsoidMaterials = scene.ellipsoidMaterials;
-        for (const Material& ellipsoidMaterial : ellipsoidMaterials)
-            REQUIRE(areEqual(ellipsoidMaterial, expectedMaterial));
+        const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;
+        for (const Material& ellipsoid_material : ellipsoid_materials)
+            REQUIRE(are_equal(ellipsoid_material, expected_material));
 
-        const std::array<Colour, 6> expectedEllipsoidAmbients{ 
+        const std::array<Colour, 6> expected_ellipsoid_ambients{ 
             Colour{0.0, 1.0, 0.0},
             Colour{1.0, 0.0, 0.0},
             Colour{0.0, 1.0, 1.0},
@@ -346,12 +346,13 @@ TEST_CASE("parseInputFile", "[parseInputFile]")
             Colour{0.0, 1.0, 1.0}
         };
 
-        const std::vector<Colour>& ellipsoidAmbients = scene.ellipsoidAmbients;
-        REQUIRE(ellipsoidAmbients.size() == expectedEllipsoidAmbients.size());
-        for (std::size_t i = 0; i < ellipsoidAmbients.size(); ++i)
-            REQUIRE(areEqual(ellipsoidAmbients[i], expectedEllipsoidAmbients[i]));
+        const std::vector<Colour>& ellipsoid_ambients = scene.ellipsoid_ambients;
+        REQUIRE(ellipsoid_ambients.size() == expected_ellipsoid_ambients.size());
+        for (std::size_t i = 0; i < ellipsoid_ambients.size(); ++i) {
+            REQUIRE(are_equal(ellipsoid_ambients[i], expected_ellipsoid_ambients[i]));
+        }
 
-        REQUIRE(!scene.directionalLightSource.has_value());
-        REQUIRE(scene.pointLightSources.empty());
+        REQUIRE(!scene.directional_light_source.has_value());
+        REQUIRE(scene.point_light_sources.empty());
     }
 }

@@ -7,87 +7,77 @@
 #include <vector>
 #include <string>
 
-struct FieldOfView
-{
+struct FieldOfView {
     real x;
     real y;
 };
 
-struct Camera
-{
+struct Camera {
     Vector eye;
-    Vector lookAt;
+    Vector look_at;
     Vector up;
-    FieldOfView fieldOfView;
+    FieldOfView field_of_view;
 };
 
-struct Ray
-{
+struct Ray {
     Vector start;
     Vector direction;
 };
 
-struct Colour
-{
+struct Colour {
     real red;
     real green;
     real blue;
 };
 
-struct AttenuationParameters
-{
+struct AttenuationParameters {
     real constant;
     real linear;
     real quadratic;
 };
 
-struct DirectionalLightSource
-{
+struct DirectionalLightSource {
     Vector direction;
     Colour colour;
-    AttenuationParameters attenuationParameters;
+    AttenuationParameters attenuation_parameters;
 };
 
-struct PointLightSource
-{
+struct PointLightSource {
     Vector position;
     Colour colour;
-    AttenuationParameters attenuationParameters;
+    AttenuationParameters attenuation_parameters;
 };
 
-struct Material
-{
+struct Material {
     Colour diffuse;
     Colour specular;
     Colour emission;
     real shininess;
 };
 
-struct Scene
-{
+struct Scene {
     std::vector<Triangle> triangles;
-    std::vector<Material> triangleMaterials;
-    std::vector<Colour> triangleAmbients;
+    std::vector<Material> triangle_materials;
+    std::vector<Colour> triangle_ambients;
 
     std::vector<Ellipsoid> ellipsoids;
-    std::vector<Matrix> ellipsoidTransforms;
-    std::vector<Material> ellipsoidMaterials;
-    std::vector<Colour> ellipsoidAmbients;
+    std::vector<Matrix> ellipsoid_transforms;
+    std::vector<Material> ellipsoid_materials;
+    std::vector<Colour> ellipsoid_ambients;
 
-    std::optional<DirectionalLightSource> directionalLightSource;
-    std::vector<PointLightSource> pointLightSources;
+    std::optional<DirectionalLightSource> directional_light_source;
+    std::vector<PointLightSource> point_light_sources;
 };
 
-struct Image
-{
+struct Image {
     int width;
     int height;
     std::uint8_t* pixels;
     std::string filename;
 };
 
-Ray rayThroughPixel(const Camera& camera, int x, int y, const Image& image) noexcept;
-Colour intersect(const Ray& ray, const Scene& scene, const Vector& cameraEye) noexcept;
+Ray ray_through_pixel(const Camera& camera, int x, int y, const Image& image) noexcept;
+Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) noexcept;
 
 // Exposed at the moment for testing but ultimately should be static
 std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
