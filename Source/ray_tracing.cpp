@@ -91,6 +91,10 @@ static Colour operator*(const real scalar, const Colour& colour) noexcept {
     return Colour{scalar * colour.red, scalar * colour.green, scalar * colour.blue};
 }
 
+static Colour operator*(const Colour& lhs, const Colour& rhs) noexcept {
+    return Colour{lhs.red * rhs.red, lhs.green * rhs.green, lhs.blue * rhs.blue};
+}
+
 static real intensity(const Colour& colour) noexcept {
     return (colour.red + colour.green + colour.blue) / 3.0;
 }
@@ -181,6 +185,12 @@ Ray ray_through_pixel(const Camera& camera, const int x, const int y, const Imag
     return Ray{camera.eye, ray_direction};
 }
 
+// Likely just used for debugging and can probably be removed later
+std::ostream& operator<<(std::ostream& out, const Colour& colour) {
+    out << '(' << colour.red << ", " << colour.green << ", " << colour.blue << ')';
+    return out;
+}
+
 Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) noexcept {
     constexpr real infinity = std::numeric_limits<real>::infinity();
 
@@ -249,17 +259,24 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
 
         colour = ambient + material.emission;
 
+        const Vector intersection_point_to_camera = camera_eye - intersection_point;
+        const real distance_to_camera = magnitude(intersection_point_to_camera);
+        const Vector direction_to_camera = intersection_point_to_camera / distance_to_camera;
+
         if (scene.directional_light_source.has_value()) {
             const DirectionalLightSource& directional_light_source = scene.directional_light_source.value();
             if (!path_is_blocked(intersection_point, directional_light_source, scene)) {
-                const Vector direction_to_light = directional_light_source.direction;
+                const Vector direction_to_light = -1.0 * directional_light_source.direction;
 
-                const Colour diffuse_contribution = std::max(surface_normal * direction_to_light, 0.0) * material.diffuse;
+                const real diffuse_intensity = std::max(surface_normal * direction_to_light, 0.0);
+                const Colour diffuse_contribution = diffuse_intensity * material.diffuse;
 
-                const Vector half_angle = normalise(camera_eye + direction_to_light);
-                const Colour specular_contribution = std::pow(std::max(surface_normal * half_angle, 0.0), material.shininess) * material.specular;
+                const Vector half_angle = normalise(direction_to_camera + direction_to_light);
+                const real specular_intensity = std::pow(std::max(surface_normal * half_angle, 0.0), material.shininess);
+                const Colour specular_contribution = specular_intensity * material.specular;
 
-                colour += intensity(directional_light_source.colour) * (diffuse_contribution + specular_contribution);
+                const Colour directional_light_contribution = directional_light_source.colour * (diffuse_contribution + specular_contribution);
+                colour += directional_light_contribution;
             }
         }
 
@@ -272,12 +289,17 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
             const real distance_to_light = magnitude(intersection_point_to_light);
             const Vector direction_to_light = intersection_point_to_light / distance_to_light;
 
-            const Colour diffuse_contribution = std::max(surface_normal * direction_to_light, 0.0) * material.diffuse;
+            const real diffuse_intensity = std::max(surface_normal * direction_to_light, 0.0);
+            const Colour diffuse_contribution = diffuse_intensity * material.diffuse;
 
-            const Vector half_angle = normalise(camera_eye + direction_to_light);
-            const Colour specular_contribution = std::pow(std::max(surface_normal * half_angle, 0.0), material.shininess) * material.specular;
+            const Vector half_angle = normalise(direction_to_camera + direction_to_light);
+            const real specular_intensity = std::pow(std::max(surface_normal * half_angle, 0.0), material.shininess);
+            const Colour specular_contribution = specular_intensity * material.specular;
 
-            colour += intensity(light.colour) * attenuation(light.attenuation_parameters, distance_to_light) * (diffuse_contribution + specular_contribution);
+            const real light_attenuation = attenuation(scene.attenuation_parameters, distance_to_light);
+
+            const Colour point_light_contribution = light_attenuation * light.colour * (diffuse_contribution + specular_contribution);
+            colour += point_light_contribution;
         }
     }
 

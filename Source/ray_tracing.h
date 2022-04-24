@@ -30,22 +30,14 @@ struct Colour {
     real blue;
 };
 
-struct AttenuationParameters {
-    real constant;
-    real linear;
-    real quadratic;
-};
-
 struct DirectionalLightSource {
     Vector direction;
     Colour colour;
-    AttenuationParameters attenuation_parameters;
 };
 
 struct PointLightSource {
     Vector position;
     Colour colour;
-    AttenuationParameters attenuation_parameters;
 };
 
 struct Material {
@@ -53,6 +45,12 @@ struct Material {
     Colour specular;
     Colour emission;
     real shininess;
+};
+
+struct AttenuationParameters {
+    real constant;
+    real linear;
+    real quadratic;
 };
 
 struct Scene {
@@ -67,6 +65,8 @@ struct Scene {
 
     std::optional<DirectionalLightSource> directional_light_source;
     std::vector<PointLightSource> point_light_sources;
+
+    AttenuationParameters attenuation_parameters;
 };
 
 struct Image {

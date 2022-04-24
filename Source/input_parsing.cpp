@@ -72,6 +72,7 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
     // Lighting
     Colour current_ambient{0.2, 0.2, 0.2};
     scene.directional_light_source = std::nullopt;
+    scene.attenuation_parameters = AttenuationParameters{1.0, 0.0, 0.0};
 
     // Materials
     Material current_material{
@@ -95,8 +96,9 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 
         if (command.name == "size") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 2 || !std::all_of(params.begin(), params.end(), is_positive_int))
+            if (params.size() != 2 || !std::all_of(params.begin(), params.end(), is_positive_int)) {
                 return "'size' command should have 2 positive integer parameters.";
+            }
                         
             image.width = std::stoi(params[0]);
             image.height = std::stoi(params[1]);
@@ -266,7 +268,6 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 scene.directional_light_source = DirectionalLightSource{
                     Vector{0.0, 0.0, 0.0, 1.0},
                     Colour{0.0, 0.0, 0.0},
-                    AttenuationParameters{1.0, 0.0, 0.0}
                 };
             }
 
@@ -295,7 +296,6 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
             const PointLightSource point_light{
                 Vector{x, y, z, 1.0},
                 Colour{r, g, b},
-                AttenuationParameters{0.0, 0.0, 1.0}
             };
 
             scene.point_light_sources.emplace_back(point_light);
@@ -305,17 +305,9 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "'attenuation' command should have 3 floating point parameters.";
             }
             
-            if (!scene.directional_light_source.has_value()) {
-                scene.directional_light_source = DirectionalLightSource{
-                    Vector{0.0, 0.0, 0.0, 1.0},
-                    Colour{0.0, 0.0, 0.0},
-                    AttenuationParameters{1.0, 0.0, 0.0}
-                };
-            }
-
-            scene.directional_light_source.value().attenuation_parameters.constant = std::stor(params[0]);
-            scene.directional_light_source.value().attenuation_parameters.linear = std::stor(params[1]);
-            scene.directional_light_source.value().attenuation_parameters.quadratic = std::stor(params[2]);
+            scene.attenuation_parameters.constant = std::stor(params[0]);
+            scene.attenuation_parameters.linear = std::stor(params[1]);
+            scene.attenuation_parameters.quadratic = std::stor(params[2]);
         } else if (command.name == "ambient") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {

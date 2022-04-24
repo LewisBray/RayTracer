@@ -98,13 +98,13 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
         const DirectionalLightSource& directional_light_source = scene.directional_light_source.value();
         REQUIRE(are_equal(directional_light_source.direction, Vector{0.0, 0.0, 1.0, 1.0}));
         REQUIRE(are_equal(directional_light_source.colour, Colour{0.5, 0.5, 0.5}));
-        REQUIRE(are_equal(directional_light_source.attenuation_parameters, AttenuationParameters{1.0, 0.0, 0.0}));
 
         REQUIRE(scene.point_light_sources.size() == 1);
         const PointLightSource& point_light_source = scene.point_light_sources.front();
         REQUIRE(are_equal(point_light_source.position, Vector{4.0, 0.0, 4.0, 1.0}));
         REQUIRE(are_equal(point_light_source.colour, Colour{0.5, 0.5, 0.5}));
-        REQUIRE(are_equal(point_light_source.attenuation_parameters, AttenuationParameters{0.0, 0.0, 1.0}));
+        
+        REQUIRE(are_equal(scene.attenuation_parameters, AttenuationParameters{1.0, 0.0, 0.0}));
     }
 
     SECTION("scene_2") {
