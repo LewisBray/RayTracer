@@ -308,9 +308,9 @@ TEST_CASE("shape_normals", "[shape_normals]") {
         const Matrix scale = scaling_matrix(x_scale, y_scale, z_scale);
         const Matrix scale_inverse = scaling_matrix(1.0 / x_scale, 1.0 / y_scale, 1.0 / z_scale);
 
-        const real angle = 90.0;
-        const Matrix rotate = rotation_matrix(0.0, 0.0, 1.0, angle);
-        const Matrix rotate_inverse = rotation_matrix(0.0, 0.0, 1.0, -angle);
+        const real angle = to_radians(90.0);
+        const Matrix rotate = rotation_matrix(angle, 0.0, 0.0, 1.0);
+        const Matrix rotate_inverse = rotation_matrix(-angle, 0.0, 0.0, 1.0);
         
         const real x_shift = 4.0;
         const real y_shift = 5.0;
@@ -324,13 +324,13 @@ TEST_CASE("shape_normals", "[shape_normals]") {
         const Sphere sphere{origin, radius};
         const Ellipsoid ellipsoid{sphere, transform_inverse};
 
-        const Vector unit_normal3 = unit_surface_normal(ellipsoid, transform * i);
-        REQUIRE(are_equal(homogenise(unit_normal3), i));
+        const Vector unit_normal1 = unit_surface_normal(ellipsoid, transform * i);
+        REQUIRE(are_equal(homogenise(unit_normal1), j));
 
         const Vector unit_normal2 = unit_surface_normal(ellipsoid, transform * j);
-        REQUIRE(are_equal(homogenise(unit_normal2), j));
+        REQUIRE(are_equal(homogenise(unit_normal2), homogenise(-1.0 * i)));
 
-        const Vector unit_normal1 = unit_surface_normal(ellipsoid, transform * k);
-        REQUIRE(are_equal(homogenise(unit_normal1), k));
+        const Vector unit_normal3 = unit_surface_normal(ellipsoid, transform * k);
+        REQUIRE(are_equal(homogenise(unit_normal3), k));
     }
 }

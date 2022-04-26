@@ -287,9 +287,10 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
         REQUIRE(scene.triangle_materials.empty());
         REQUIRE(scene.triangle_ambients.empty());
 
+        const real angle = to_radians(45.0);
         const std::array<Matrix, 6> expected_ellipsoid_transforms {
-            translation_matrix(0.0, 0.0, 0.5) * rotation_matrix(45.0, 0.0, 0.0, 1.0) * scaling_matrix(1.0, 0.25, 0.25),
-            translation_matrix(0.0, 0.0, 0.5) * rotation_matrix(-45.0, 0.0, 0.0, 1.0) * scaling_matrix(1.0, 0.25, 0.25),
+            translation_matrix(0.0, 0.0, 0.5) * rotation_matrix(angle, 0.0, 0.0, 1.0) * scaling_matrix(1.0, 0.25, 0.25),
+            translation_matrix(0.0, 0.0, 0.5) * rotation_matrix(-angle, 0.0, 0.0, 1.0) * scaling_matrix(1.0, 0.25, 0.25),
             translation_matrix(-1.5, -0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4),
             translation_matrix(1.5, -0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4),
             translation_matrix(1.5, 0.8, 0.65) * scaling_matrix(0.4, 0.4, 0.4),
@@ -297,8 +298,8 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
         };
 
         const std::array<Matrix, 6> expected_ellipsoid_inverse_transforms {
-            scaling_matrix(1.0, 4.0, 4.0) * rotation_matrix(-45.0, 0.0, 0.0, 1.0) * translation_matrix(0.0, 0.0, -0.5),
-            scaling_matrix(1.0, 4.0, 4.0) * rotation_matrix(45.0, 0.0, 0.0, 1.0) * translation_matrix(0.0, 0.0, -0.5),
+            scaling_matrix(1.0, 4.0, 4.0) * rotation_matrix(-angle, 0.0, 0.0, 1.0) * translation_matrix(0.0, 0.0, -0.5),
+            scaling_matrix(1.0, 4.0, 4.0) * rotation_matrix(angle, 0.0, 0.0, 1.0) * translation_matrix(0.0, 0.0, -0.5),
             scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(1.5, 0.8, -0.65),
             scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(-1.5, 0.8, -0.65),
             scaling_matrix(2.5, 2.5, 2.5) * translation_matrix(-1.5, -0.8, -0.65),

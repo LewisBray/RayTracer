@@ -254,8 +254,9 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
             const real axis_y = std::stor(params[1]);
             const real axis_z = std::stor(params[2]);
             const real angle = std::stor(params[3]);
-            const Matrix rotation = rotation_matrix(angle, axis_x, axis_y, axis_z);
-            const Matrix inverse_rotation = rotation_matrix(-angle, axis_x, axis_y, axis_z);
+            const real angle_in_radians = to_radians(angle);
+            const Matrix rotation = rotation_matrix(angle_in_radians, axis_x, axis_y, axis_z);
+            const Matrix inverse_rotation = rotation_matrix(-angle_in_radians, axis_x, axis_y, axis_z);
             current_transform = current_transform * rotation;
             inverse_current_transform = inverse_rotation * inverse_current_transform;
         } else if (command.name == "directional") {
