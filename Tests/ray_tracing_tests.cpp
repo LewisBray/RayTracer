@@ -70,35 +70,38 @@ TEST_CASE("intersect", "[intersect]") {
         const Sphere sphere{centre, radius};
 
         // Intersecting twice with sphere should yield closest intersection distance
-        const Vector twice_intersecting_start{-5.0, -1.0, -8.0, 1.0};
-        const Vector twice_intersecting_direction{6.0, 2.0, 0.0, std::sqrt(40.0)};
+        const Vector twice_intersecting_start{4.0, 1.0, -10.0, 1.0};
+        const Vector twice_intersecting_direction{0.0, 0.0, 1.0, 1.0};
         const Ray twice_intersecting_ray{twice_intersecting_start, twice_intersecting_direction};
-        const std::optional<real> twice_intersecting_distance = intersect(twice_intersecting_ray, sphere);
-        REQUIRE(twice_intersecting_distance.has_value());
-        REQUIRE(are_equal(twice_intersecting_distance.value(), std::sqrt(40.0)));
+        const std::optional<std::pair<real, real>> twice_intersecting_distances = intersect(twice_intersecting_ray, sphere);
+        REQUIRE(twice_intersecting_distances.has_value());
+        REQUIRE(are_equal(twice_intersecting_distances.value().first, -1.0));
+        REQUIRE(are_equal(twice_intersecting_distances.value().second, 5.0));
 
         // Check single intersections
         const Vector once_intersecting_start{7.0, 1.0, -20.0, 1.0};
         const Vector once_intersecting_direction{0.0, 0.0, 1.0, 1.0};
         const Ray once_intersecting_ray{once_intersecting_start, once_intersecting_direction};
-        const std::optional<real> once_intersecting_distance = intersect(once_intersecting_ray, sphere);
-        REQUIRE(once_intersecting_distance.has_value());
-        REQUIRE(are_equal(once_intersecting_distance.value(), 12.0));
+        const std::optional<std::pair<real, real>> once_intersecting_distances = intersect(once_intersecting_ray, sphere);
+        REQUIRE(once_intersecting_distances.has_value());
+        REQUIRE(are_equal(once_intersecting_distances.value().first, once_intersecting_distances.value().second));
+        REQUIRE(are_equal(once_intersecting_distances.value().first, 12.0));
 
         // Check intersection we expect to miss
         const Vector never_intersecting_start{4.0, 10.0, 0.0, 1.0};
         const Vector never_intersecting_direction{1.0, 1.0, 1.0, std::sqrt(3.0)};
         const Ray never_intersecting_ray{never_intersecting_start, never_intersecting_direction};
-        const std::optional<real> never_intersecting_distance = intersect(never_intersecting_ray, sphere);
-        REQUIRE(!never_intersecting_distance.has_value());
+        const std::optional<std::pair<real, real>> never_intersecting_distances = intersect(never_intersecting_ray, sphere);
+        REQUIRE(!never_intersecting_distances.has_value());
 
-        // Check single intersection with ray origin inside the sphere
+        // Check intersection with ray origin inside the sphere
         const Vector internal_start{5.0, 2.0, -7.0, 1.0};
         const Vector internal_direction{0.0, 1.0, 0.0, 1.0};
         const Ray internal_ray{internal_start, internal_direction};
-        const std::optional<real> internal_intersection_distance = intersect(internal_ray, sphere);
-        REQUIRE(internal_intersection_distance.has_value());
-        REQUIRE(are_equal(internal_intersection_distance.value(), 1.645751311));
+        const std::optional<std::pair<real, real>> internal_intersection_distances = intersect(internal_ray, sphere);
+        REQUIRE(internal_intersection_distances.has_value());
+        REQUIRE(are_equal(internal_intersection_distances.value().first, -3.645751311));
+        REQUIRE(are_equal(internal_intersection_distances.value().second, 1.645751311));
     }
 
     // TODO: Triangle and sphere intersection methods should be tested indirectly through the
