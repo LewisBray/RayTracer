@@ -4,6 +4,7 @@
 #include "maths.h"
 
 #include <optional>
+#include <utility>
 #include <vector>
 #include <string>
 
@@ -81,6 +82,6 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
 
 // Exposed at the moment for testing but ultimately should be static
 std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
-std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept;
+std::optional<std::pair<real, real>> intersect(const Ray& ray, const Sphere& sphere) noexcept;
 
 #endif

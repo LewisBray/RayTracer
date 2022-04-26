@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <optional>
 #include <cassert>
+#include <utility>
 #include <limits>
 #include <cmath>
 
@@ -35,7 +36,7 @@ std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept
     return intersection_distance;
 }
 
-std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept {
+std::optional<std::pair<real, real>> intersect(const Ray& ray, const Sphere& sphere) noexcept {
     const Vector sphere_centre_to_ray_start = ray.start - sphere.centre;
     const real a = ray.direction * ray.direction;
     const real b = 2 * ray.direction * sphere_centre_to_ray_start;
@@ -45,25 +46,16 @@ std::optional<real> intersect(const Ray& ray, const Sphere& sphere) noexcept {
     if (less_than(discriminant, 0.0)) {
         return std::nullopt;
     }
-    
-    const real intersection_distance_1 = (-b - std::sqrt(discriminant)) / 2.0 * a;
-    const real intersection_distance_2 = intersection_distance_1 + std::sqrt(discriminant) / a;
 
-    const bool intersection_distance_1_is_negative = less_than(intersection_distance_1, 0.0);
-    const bool intersection_distance_2_is_negative = less_than(intersection_distance_2, 0.0);
-    if (intersection_distance_1_is_negative && intersection_distance_2_is_negative) {
-        return std::nullopt;
-    } else if (intersection_distance_1_is_negative) {
-        return intersection_distance_2;
-    } else if (intersection_distance_2_is_negative) {
-        return intersection_distance_1;
-    } else {
-        return std::min(intersection_distance_1, intersection_distance_2);
-    }
+    const real sqrt_discriminant = std::sqrt(discriminant);    
+    const real intersection_distance_1 = (-b - sqrt_discriminant) / 2.0 * a;
+    const real intersection_distance_2 = intersection_distance_1 + sqrt_discriminant / a;
+
+    return std::pair{intersection_distance_1, intersection_distance_2};
 }
 
 // Ray helper methods
-static Ray transform_ray(const Matrix& transform, Ray ray) noexcept {
+Ray transform_ray(const Matrix& transform, Ray ray) noexcept {
     ray.start = transform * ray.start;
 
     ray.direction = homogenise(ray.direction);
@@ -116,7 +108,7 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
 
     for (const Triangle& triangle : scene.triangles) {
         const std::optional<real> intersection_distance = intersect(ray, triangle);
-        if (intersection_distance.has_value() && !are_equal(intersection_distance.value(), 0.0) && less_than(intersection_distance.value(), distance_to_destination)) {
+        if (intersection_distance.has_value() && greater_than(intersection_distance.value(), 0.0) && less_than(intersection_distance.value(), distance_to_destination)) {
             return true;
         }
     }
@@ -124,13 +116,16 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-        const std::optional<real> transformed_intersection_distance = intersect(transformed_ray, ellipsoid.sphere);
-        if (transformed_intersection_distance.has_value()) {
-            const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[i];
-            const Vector transformed_intersection_point = transformed_ray.start + transformed_intersection_distance.value() * transformed_ray.direction;
-            const Vector intersection_point = ellipsoid_transform * transformed_intersection_point;
-            const real intersection_distance = magnitude(intersection_point - ray.start);
-            if (!are_equal(intersection_distance, 0.0) && less_than(intersection_distance, distance_to_destination)) {
+        const std::optional<std::pair<real, real>> transformed_intersection_distances = intersect(transformed_ray, ellipsoid.sphere);
+        if (transformed_intersection_distances.has_value()) {
+            const Vector transformed_light_position = ellipsoid.inverse_transform * light.position;
+            const real transformed_distance_to_light = magnitude(transformed_light_position - transformed_ray.start);
+
+            const real transformed_intersection_distance_1 = transformed_intersection_distances.value().first;
+            const real transformed_intersection_distance_2 = transformed_intersection_distances.value().second;
+
+            if ((greater_than(transformed_intersection_distance_1, 0.0) && less_than(transformed_intersection_distance_1, transformed_distance_to_light))
+                || (greater_than(transformed_intersection_distance_2, 0.0) && less_than(transformed_intersection_distance_2, transformed_distance_to_light))) {
                 return true;
             }
         }
@@ -140,11 +135,11 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
 }
 
 static bool path_is_blocked(const Vector& start, const DirectionalLightSource& light, const Scene& scene) noexcept {
-    const Ray ray{start, light.direction};
+    const Ray ray{start, -1.0 * light.direction};
 
     for (const Triangle& triangle : scene.triangles) {
         const std::optional<real> intersection_distance = intersect(ray, triangle);
-        if (intersection_distance.has_value() && !are_equal(intersection_distance.value(), 0.0)) {
+        if (intersection_distance.has_value() && greater_than(intersection_distance.value(), 0.0)) {
             return true;
         }
     }
@@ -152,13 +147,11 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-        const std::optional<real> transformed_intersection_distance = intersect(transformed_ray, ellipsoid.sphere);
-        if (transformed_intersection_distance.has_value()) {
-            const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[i];
-            const Vector transformed_intersection_point = transformed_ray.start + transformed_intersection_distance.value() * transformed_ray.direction;
-            const Vector intersection_point = ellipsoid_transform * transformed_intersection_point;
-            const real intersection_distance = magnitude(intersection_point - ray.start);
-            if (!are_equal(intersection_distance, 0.0)) {
+        const std::optional<std::pair<real, real>> transformed_intersection_distances = intersect(transformed_ray, ellipsoid.sphere);
+        if (transformed_intersection_distances.has_value()) {
+            const real transformed_intersection_distance_1 = transformed_intersection_distances.value().first;
+            const real transformed_intersection_distance_2 = transformed_intersection_distances.value().second;
+            if (greater_than(transformed_intersection_distance_1, 0.0) || greater_than(transformed_intersection_distance_2, 0.0)) {
                 return true;
             }
         }
@@ -198,7 +191,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
     real closest_triangle_intersection_distance = std::numeric_limits<real>::infinity();
     for (std::size_t i = 0; i < scene.triangles.size(); ++i) {
         const std::optional<real> intersection_distance = intersect(ray, scene.triangles[i]);
-        if (intersection_distance.has_value() && less_than(intersection_distance.value(), closest_triangle_intersection_distance)) {
+        if (intersection_distance.has_value() && greater_than(intersection_distance.value(), 0.0) && less_than(intersection_distance.value(), closest_triangle_intersection_distance)) {
             closest_intersecting_triangle_index = i;
             closest_triangle_intersection_distance = intersection_distance.value();
         }
@@ -209,15 +202,32 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-        const std::optional<real> transformed_intersection_distance = intersect(transformed_ray, ellipsoid.sphere);
-        if (transformed_intersection_distance.has_value()) {
-            const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[i];
-            const Vector transformed_intersection_point = transformed_ray.start + transformed_intersection_distance.value() * transformed_ray.direction;
-            const Vector intersection_point = ellipsoid_transform * transformed_intersection_point;
-            const real intersection_distance = magnitude(intersection_point - ray.start);
-            if (less_than(intersection_distance, closest_ellipsoid_intersection_distance)) {
-                closest_intersecting_ellipsoid_index = i;
-                closest_ellipsoid_intersection_distance = intersection_distance;
+        const std::optional<std::pair<real, real>> transformed_intersection_distances = intersect(transformed_ray, ellipsoid.sphere);
+        if (transformed_intersection_distances.has_value()) {
+            const real transformed_intersection_distance_1 = transformed_intersection_distances.value().first;
+            const real transformed_intersection_distance_2 = transformed_intersection_distances.value().second;
+
+            const bool transformed_intersection_distance_1_is_negative = less_than(transformed_intersection_distance_1, 0.0);
+            const bool transformed_intersection_distance_2_is_negative = less_than(transformed_intersection_distance_2, 0.0);
+
+            std::optional<real> transformed_closest_intersection_distance = std::nullopt;
+            if (transformed_intersection_distance_1_is_negative && !transformed_intersection_distance_2_is_negative) {
+                transformed_closest_intersection_distance = transformed_intersection_distance_2;
+            } else if (transformed_intersection_distance_2_is_negative && !transformed_intersection_distance_1_is_negative) {
+                transformed_closest_intersection_distance = transformed_intersection_distance_1;
+            } else {
+                transformed_closest_intersection_distance = std::min(transformed_intersection_distance_1, transformed_intersection_distance_2);
+            }
+
+            if (transformed_closest_intersection_distance.has_value()) {
+                const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[i];
+                const Vector transformed_intersection_point = transformed_ray.start + transformed_closest_intersection_distance.value() * transformed_ray.direction;
+                const Vector intersection_point = ellipsoid_transform * transformed_intersection_point;
+                const real intersection_distance = magnitude(intersection_point - ray.start);
+                if (less_than(intersection_distance, closest_ellipsoid_intersection_distance)) {
+                    closest_intersecting_ellipsoid_index = i;
+                    closest_ellipsoid_intersection_distance = intersection_distance;
+                }
             }
         }
     }
