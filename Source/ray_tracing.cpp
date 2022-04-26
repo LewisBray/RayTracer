@@ -185,7 +185,7 @@ Ray ray_through_pixel(const Camera& camera, const int x, const int y, const Imag
     return Ray{camera.eye, ray_direction};
 }
 
-// Likely just used for debugging and can probably be removed later
+// TODO: Likely just used for debugging and can probably be removed later
 std::ostream& operator<<(std::ostream& out, const Colour& colour) {
     out << '(' << colour.red << ", " << colour.green << ", " << colour.blue << ')';
     return out;
@@ -250,8 +250,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
             
             assert(index < scene.ellipsoids.size());
             const Ellipsoid& ellipsoid = scene.ellipsoids[index];
-            const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[index];
-            surface_normal = unit_surface_normal(ellipsoid, ellipsoid_transform, intersection_point);
+            surface_normal = unit_surface_normal(ellipsoid, intersection_point);
             
             ambient = scene.ellipsoid_ambients[index];
             material = scene.ellipsoid_materials[index];

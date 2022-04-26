@@ -324,13 +324,13 @@ TEST_CASE("shape_normals", "[shape_normals]") {
         const Sphere sphere{origin, radius};
         const Ellipsoid ellipsoid{sphere, transform_inverse};
 
-        const Vector unit_normal3 = unit_surface_normal(ellipsoid, transform, transform * i);
-        REQUIRE(are_equal(unit_normal3, Vector{x_scale, 0.0, 0.0, x_scale}));
+        const Vector unit_normal3 = unit_surface_normal(ellipsoid, transform * i);
+        REQUIRE(are_equal(homogenise(unit_normal3), i));
 
-        const Vector unit_normal2 = unit_surface_normal(ellipsoid, transform, transform * j);
-        REQUIRE(are_equal(unit_normal2, Vector{0.0, y_scale, 0.0, y_scale}));
+        const Vector unit_normal2 = unit_surface_normal(ellipsoid, transform * j);
+        REQUIRE(are_equal(homogenise(unit_normal2), j));
 
-        const Vector unit_normal1 = unit_surface_normal(ellipsoid, transform, transform * k);
-        REQUIRE(are_equal(unit_normal1, Vector{0.0, 0.0, z_scale, z_scale}));
+        const Vector unit_normal1 = unit_surface_normal(ellipsoid, transform * k);
+        REQUIRE(are_equal(homogenise(unit_normal1), k));
     }
 }

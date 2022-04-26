@@ -59,6 +59,6 @@ struct Ellipsoid {
 
 Vector unit_surface_normal(const Triangle& triangle) noexcept;
 Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noexcept;
-Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Matrix& ellipsoid_transform, const Vector& point) noexcept;
+Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Vector& point) noexcept;
 
 #endif

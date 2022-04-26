@@ -46,28 +46,37 @@ int main(const int argc, const char* const argv[]) {
     };
     
     const Scene& scene = file_info.scene;
+    
     std::cout << "Triangles:\n";
     for (std::size_t i = 0; i < scene.triangles.size(); ++i) {
         const Triangle& triangle = scene.triangles[i];
         const Colour& ambient = scene.triangle_ambients[i];
         std::cout << '\t' << triangle.a << ", " << triangle.b << ", " << triangle.c << ": " << to_string(ambient) << std::endl;
     }
+    
     std::cout << "Ellipsoids:\n";
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
-        const Sphere& sphere = scene.ellipsoids[i].sphere;
+        const Ellipsoid& ellipsoid = scene.ellipsoids[i];
+        const Sphere& sphere = ellipsoid.sphere;
+        const Vector centre = scene.ellipsoid_transforms[i] * sphere.centre;
         const Colour& ambient = scene.ellipsoid_ambients[i];
-        std::cout << '\t' << sphere.centre << ", " << sphere.radius << ": " << to_string(ambient) << std::endl;
+        std::cout << '\t' << centre << ", " << sphere.radius << ": " << to_string(ambient) << std::endl;
     }
-    
-    std::cout << "Max recursion depth:\n\t" << file_info.max_recursion_depth << std::endl;
 
-    // const Triangle triangle{{0.5, -0.5, 0.0, 1.0}, {0.0, 0.5, 0.0, 1.0}, {-0.5, -0.5, 0.0, 1.0}};
-    // const Ray ray{{0.0, 0.0, 5.0, 1.0}, {0.0, 0.05, 3.0, 1.0}};
-    // const auto intersection = intersect(ray, triangle);
-    // if (intersection.has_value())
-    //     std::cout << intersection.value() << std::endl;
-    // else
-    //     std::cout << "No intersection" << std::endl;
+    if (scene.directional_light_source.has_value()) {
+        const DirectionalLightSource& directional_light_source = scene.directional_light_source.value();
+        std::cout
+            << "Directional light: \n\tdirection - " << directional_light_source.direction
+            << "\n\tcolour - " << to_string(directional_light_source.colour)
+            << std::endl;
+    }
+
+    std::cout << "Point lights:\n";
+    for (const PointLightSource& point_light_source : scene.point_light_sources) {
+        std::cout << "Position: " << point_light_source.position << " Colour: " << to_string(point_light_source.colour) << std::endl;
+    }
+
+    std::cout << "Max recursion depth:\n\t" << file_info.max_recursion_depth << std::endl;
 
     for (int y = 0; y < image.height; ++y) {
         for (int x = 0; x < image.width; ++x) {

@@ -200,12 +200,22 @@ Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noexcept {
     return normalise(point - sphere.centre);
 }
 
-Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Matrix& ellipsoid_transform, const Vector& point) noexcept {
-    const Vector point_in_ellipsoid_space = ellipsoid.inverse_transform * point;
+static Vector multiply_by_transpose(const Matrix& m, const Vector& v) noexcept {
+    return Vector {
+        m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z + m[3][0] * v.w,
+        m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z + m[3][1] * v.w,
+        m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z + m[3][2] * v.w,
+        m[0][3] * v.x + m[1][3] * v.y + m[2][3] * v.z + m[3][3] * v.w
+    };
+}
+
+Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Vector& point) noexcept {
+    const Vector point_in_ellipsoid_space = ellipsoid.inverse_transform * point;    
+    const Vector unit_surface_normal_in_ellipsoid_space = unit_surface_normal(ellipsoid.sphere, point_in_ellipsoid_space);
     
-    Vector surface_normal = homogenise(unit_surface_normal(ellipsoid.sphere, point_in_ellipsoid_space));
+    Vector surface_normal = homogenise(unit_surface_normal_in_ellipsoid_space);
     surface_normal.w = 0.0;
-    surface_normal = ellipsoid_transform * surface_normal;
+    surface_normal = multiply_by_transpose(ellipsoid.inverse_transform, surface_normal);
     surface_normal.w = 1.0;
 
     return normalise(surface_normal);
