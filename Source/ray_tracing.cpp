@@ -184,7 +184,7 @@ std::ostream& operator<<(std::ostream& out, const Colour& colour) {
     return out;
 }
 
-Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) noexcept {
+Colour intersect(const Ray& ray, const Scene& scene) noexcept {
     constexpr real infinity = std::numeric_limits<real>::infinity();
 
     std::optional<std::size_t> closest_intersecting_triangle_index = std::nullopt;
@@ -268,10 +268,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
 
         colour = ambient + material.emission;
 
-        const Vector intersection_point_to_camera = camera_eye - intersection_point;
-        const real distance_to_camera = magnitude(intersection_point_to_camera);
-        const Vector direction_to_camera = intersection_point_to_camera / distance_to_camera;
-
+        const Vector direction_to_ray_start = -1.0 * ray.direction;
         if (scene.directional_light_source.has_value()) {
             const DirectionalLightSource& directional_light_source = scene.directional_light_source.value();
             if (!path_is_blocked(intersection_point, directional_light_source, scene)) {
@@ -280,7 +277,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
                 const real diffuse_intensity = std::max(surface_normal * direction_to_light, 0.0);
                 const Colour diffuse_contribution = diffuse_intensity * material.diffuse;
 
-                const Vector half_angle = normalise(direction_to_camera + direction_to_light);
+                const Vector half_angle = normalise(direction_to_ray_start + direction_to_light);
                 const real specular_intensity = std::pow(std::max(surface_normal * half_angle, 0.0), material.shininess);
                 const Colour specular_contribution = specular_intensity * material.specular;
 
@@ -301,7 +298,7 @@ Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) n
             const real diffuse_intensity = std::max(surface_normal * direction_to_light, 0.0);
             const Colour diffuse_contribution = diffuse_intensity * material.diffuse;
 
-            const Vector half_angle = normalise(direction_to_camera + direction_to_light);
+            const Vector half_angle = normalise(direction_to_ray_start + direction_to_light);
             const real specular_intensity = std::pow(std::max(surface_normal * half_angle, 0.0), material.shininess);
             const Colour specular_contribution = specular_intensity * material.specular;
 

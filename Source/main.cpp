@@ -81,7 +81,7 @@ int main(const int argc, const char* const argv[]) {
     for (int y = 0; y < image.height; ++y) {
         for (int x = 0; x < image.width; ++x) {
             const Ray ray = ray_through_pixel(camera, x, y, image);
-            const Colour colour = intersect(ray, scene, camera.eye);
+            const Colour colour = intersect(ray, scene);
             unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
             pixel[0] = static_cast<unsigned char>(colour.red * 255);
             pixel[1] = static_cast<unsigned char>(colour.green * 255);

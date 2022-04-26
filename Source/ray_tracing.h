@@ -78,7 +78,7 @@ struct Image {
 };
 
 Ray ray_through_pixel(const Camera& camera, int x, int y, const Image& image) noexcept;
-Colour intersect(const Ray& ray, const Scene& scene, const Vector& camera_eye) noexcept;
+Colour intersect(const Ray& ray, const Scene& scene) noexcept;
 
 // Exposed at the moment for testing but ultimately should be static
 std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
