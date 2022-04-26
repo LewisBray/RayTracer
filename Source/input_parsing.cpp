@@ -9,7 +9,6 @@
 #include <cassert>
 #include <vector>
 #include <string>
-#include <stack>
 #include <regex>
 
 static bool is_positive_int(const std::string& str) {
@@ -66,8 +65,8 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
     std::vector<Vector> vertices;
     Matrix current_transform = identity_matrix();
     Matrix inverse_current_transform = identity_matrix();
-    std::stack<Matrix, std::vector<Matrix>> transform_stack;
-    std::stack<Matrix, std::vector<Matrix>> inverse_transform_stack;
+    std::vector<Matrix> transform_stack;
+    std::vector<Matrix> inverse_transform_stack;
 
     // Lighting
     Colour current_ambient{0.2, 0.2, 0.2};
@@ -173,9 +172,16 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "Vertex index specified in 'tri' command is beyond the number of specified vertices.";
             }
 
-            const Vector a = current_transform * vertices[a_index];
-            const Vector b = current_transform * vertices[b_index];
-            const Vector c = current_transform * vertices[c_index];
+            Matrix transform = identity_matrix();
+            for (const Matrix& m : transform_stack) {
+                transform = transform * m;
+            }
+
+            transform = transform * current_transform;
+
+            const Vector a = transform * vertices[a_index];
+            const Vector b = transform * vertices[b_index];
+            const Vector c = transform * vertices[c_index];
             scene.triangles.emplace_back(Triangle{a, b, c});
             scene.triangle_ambients.emplace_back(current_ambient);
             scene.triangle_materials.emplace_back(current_material);
@@ -191,8 +197,22 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
             const real radius = std::stor(params[3]);
             const Vector centre{x_centre, y_centre, z_centre, 1.0};
 
-            scene.ellipsoids.emplace_back(Ellipsoid{centre, radius, inverse_current_transform});
-            scene.ellipsoid_transforms.emplace_back(current_transform);
+            Matrix transform = identity_matrix();
+            for (const Matrix& m : transform_stack) {
+                transform = transform * m;
+            }
+
+            transform = transform * current_transform;
+
+            Matrix inverse_transform = identity_matrix();
+            for (const Matrix&m : inverse_transform_stack) {
+                inverse_transform = m * inverse_transform;
+            }
+
+            inverse_transform = inverse_current_transform * inverse_transform;
+
+            scene.ellipsoids.emplace_back(Ellipsoid{centre, radius, inverse_transform});
+            scene.ellipsoid_transforms.emplace_back(transform);
             scene.ellipsoid_ambients.emplace_back(current_ambient);
             scene.ellipsoid_materials.emplace_back(current_material);
         } else if (command.name == "pushTransform") {
@@ -200,8 +220,8 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "'pushTransform' command does not take any parameters.";
             }
             
-            transform_stack.push(current_transform);
-            inverse_transform_stack.push(inverse_current_transform);
+            transform_stack.push_back(current_transform);
+            inverse_transform_stack.push_back(inverse_current_transform);
             current_transform = identity_matrix();
             inverse_current_transform = identity_matrix();
         } else if (command.name == "popTransform") {
@@ -214,10 +234,10 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
             }
 
             assert(!inverse_transform_stack.empty());
-            current_transform = transform_stack.top();
-            inverse_current_transform = inverse_transform_stack.top();
-            transform_stack.pop();
-            inverse_transform_stack.pop();
+            current_transform = transform_stack.back();
+            inverse_current_transform = inverse_transform_stack.back();
+            transform_stack.pop_back();
+            inverse_transform_stack.pop_back();
         } else if (command.name == "translate") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
