@@ -236,7 +236,6 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
     if (closest_intersecting_triangle_index.has_value() || closest_intersecting_ellipsoid_index.has_value()) {
         assert(closest_triangle_intersection_distance < infinity || closest_ellipsoid_intersection_distance < infinity);
         
-        Colour ambient{};
         Material material{};
         Vector surface_normal{};
         Vector intersection_point{};
@@ -250,7 +249,6 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
             const Triangle& triangle = scene.triangles[index];
             surface_normal = unit_surface_normal(triangle);
             
-            ambient = scene.triangle_ambients[index];
             material = scene.triangle_materials[index];
         } else {    // ellipsoid is closer
             assert(closest_intersecting_ellipsoid_index.has_value());
@@ -262,11 +260,10 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
             const Ellipsoid& ellipsoid = scene.ellipsoids[index];
             surface_normal = unit_surface_normal(ellipsoid, intersection_point);
             
-            ambient = scene.ellipsoid_ambients[index];
             material = scene.ellipsoid_materials[index];
         }
 
-        colour = ambient + material.emission;
+        colour = scene.ambient + material.emission;
 
         const Vector direction_to_ray_start = -1.0 * ray.direction;
         if (scene.directional_light_source.has_value()) {

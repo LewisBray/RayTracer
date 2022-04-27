@@ -57,16 +57,15 @@ struct AttenuationParameters {
 struct Scene {
     std::vector<Triangle> triangles;
     std::vector<Material> triangle_materials;
-    std::vector<Colour> triangle_ambients;
 
     std::vector<Ellipsoid> ellipsoids;
     std::vector<Matrix> ellipsoid_transforms;
     std::vector<Material> ellipsoid_materials;
-    std::vector<Colour> ellipsoid_ambients;
 
     std::optional<DirectionalLightSource> directional_light_source;
     std::vector<PointLightSource> point_light_sources;
 
+    Colour ambient;
     AttenuationParameters attenuation_parameters;
 };
 

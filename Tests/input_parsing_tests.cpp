@@ -81,18 +81,9 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             REQUIRE(are_equal(triangle_material, expected_material));
         }
 
-        const Colour expected_ambient{0.1, 0.1, 0.1};
-
-        const std::vector<Colour>& triangle_ambients = scene.triangle_ambients;
-        REQUIRE(triangle_ambients.size() == expected_triangles.size());
-        for (const Colour& triangle_ambient : triangle_ambients) {
-            REQUIRE(are_equal(triangle_ambient, expected_ambient));
-        }
-
         REQUIRE(scene.ellipsoids.empty());
         REQUIRE(scene.ellipsoid_transforms.empty());
         REQUIRE(scene.ellipsoid_materials.empty());
-        REQUIRE(scene.ellipsoid_ambients.empty());
 
         REQUIRE(scene.directional_light_source.has_value());
         const DirectionalLightSource& directional_light_source = scene.directional_light_source.value();
@@ -103,7 +94,8 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
         const PointLightSource& point_light_source = scene.point_light_sources.front();
         REQUIRE(are_equal(point_light_source.position, Vector{4.0, 0.0, 4.0, 1.0}));
         REQUIRE(are_equal(point_light_source.colour, Colour{0.5, 0.5, 0.5}));
-        
+
+        REQUIRE(are_equal(scene.ambient, Colour{0.1, 0.1, 0.1}));
         REQUIRE(are_equal(scene.attenuation_parameters, AttenuationParameters{1.0, 0.0, 0.0}));
     }
 
@@ -165,20 +157,11 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             REQUIRE(are_equal(triangles[i], expected_triangles[i]));
         }
 
-        const Material expected_material {
-            Colour{0.0, 0.0, 0.0},
-            Colour{0.0, 0.0, 0.0},
-            Colour{0.0, 0.0, 0.0},
-            0.0
-        };
+        const Colour expected_diffuse{0.0, 0.0, 0.0};
+        const Colour expected_specular{0.0, 0.0, 0.0};
+        const real expected_shininess = 0.0;
 
-        const std::vector<Material>& triangle_materials = scene.triangle_materials;
-        REQUIRE(triangle_materials.size() == expected_triangles.size());
-        for (const Material& triangle_material : triangle_materials) {
-            REQUIRE(are_equal(triangle_material, expected_material));
-        }
-
-        const std::array<Colour, 12> expected_triangle_ambients {
+        const std::array<Colour, 12> expected_triangle_emissions {
             Colour{0.5, 0.0, 0.5},
             Colour{0.5, 0.0, 0.5},
 
@@ -198,10 +181,14 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             Colour{0.5, 0.5, 1.0}
         };
 
-        const std::vector<Colour>& triangle_ambients = scene.triangle_ambients;
-        REQUIRE(triangle_ambients.size() == expected_triangles.size());
-        for (std::size_t i = 0; i < triangle_ambients.size(); ++i) {
-            REQUIRE(are_equal(triangle_ambients[i], expected_triangle_ambients[i]));
+        const std::vector<Material>& triangle_materials = scene.triangle_materials;
+        REQUIRE(triangle_materials.size() == expected_triangle_emissions.size());
+        for (std::size_t i = 0; i < triangle_materials.size(); ++i) {
+            const Material& material = triangle_materials[i];
+            REQUIRE(are_equal(material.diffuse, expected_diffuse));
+            REQUIRE(are_equal(material.specular, expected_specular));
+            REQUIRE(are_equal(material.emission, expected_triangle_emissions[i]));
+            REQUIRE(are_equal(material.shininess, expected_shininess));
         }
 
         const std::array<Ellipsoid, 21> expected_ellipsoids {
@@ -245,21 +232,22 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             REQUIRE(are_equal(ellipsoid_transform, identity_matrix()));
         }
 
+        const Material expected_material {
+            Colour{0.0, 0.0, 0.0},
+            Colour{0.0, 0.0, 0.0},
+            Colour{1.0, 1.0, 1.0},
+            0.0
+        };
+
         const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;
         for (const Material& ellipsoid_material : ellipsoid_materials) {
             REQUIRE(are_equal(ellipsoid_material, expected_material));
         }
 
-        const Colour expected_ellipsoid_ambient{1.0, 1.0, 1.0};
-
-        const std::vector<Colour>& ellipsoid_ambients = scene.ellipsoid_ambients;
-        REQUIRE(ellipsoid_ambients.size() == expected_ellipsoids.size());
-        for (const Colour& ellipsoid_ambient : ellipsoid_ambients) {
-            REQUIRE(are_equal(ellipsoid_ambient, expected_ellipsoid_ambient));
-        }
-
         REQUIRE(!scene.directional_light_source.has_value());
         REQUIRE(scene.point_light_sources.empty());
+
+        REQUIRE(are_equal(scene.ambient, Colour{0.0, 0.0, 0.0}));
     }
 
     SECTION("scene_3") {
@@ -285,7 +273,6 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
 
         REQUIRE(scene.triangles.empty());
         REQUIRE(scene.triangle_materials.empty());
-        REQUIRE(scene.triangle_ambients.empty());
 
         const real angle = to_radians(45.0);
         const std::array<Matrix, 6> expected_ellipsoid_transforms {
@@ -327,18 +314,11 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             REQUIRE(are_equal(ellipsoid_transforms[i], expected_ellipsoid_transforms[i]));
         }
 
-        const Material expected_material {
-            Colour{0.0, 0.0, 0.0},
-            Colour{0.0, 0.0, 0.0},
-            Colour{0.0, 0.0, 0.0},
-            0.0
-        };
+        const Colour expected_diffuse{0.0, 0.0, 0.0};
+        const Colour expected_specular{0.0, 0.0, 0.0};
+        const real expected_shininess = 0.0;
 
-        const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;
-        for (const Material& ellipsoid_material : ellipsoid_materials)
-            REQUIRE(are_equal(ellipsoid_material, expected_material));
-
-        const std::array<Colour, 6> expected_ellipsoid_ambients{ 
+        const std::array<Colour, 6> expected_ellipsoid_emissions{ 
             Colour{0.0, 1.0, 0.0},
             Colour{1.0, 0.0, 0.0},
             Colour{0.0, 1.0, 1.0},
@@ -347,13 +327,19 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             Colour{0.0, 1.0, 1.0}
         };
 
-        const std::vector<Colour>& ellipsoid_ambients = scene.ellipsoid_ambients;
-        REQUIRE(ellipsoid_ambients.size() == expected_ellipsoid_ambients.size());
-        for (std::size_t i = 0; i < ellipsoid_ambients.size(); ++i) {
-            REQUIRE(are_equal(ellipsoid_ambients[i], expected_ellipsoid_ambients[i]));
+        const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;
+        REQUIRE(are_equal(ellipsoid_materials.size(), expected_ellipsoid_emissions.size()));
+        for (std::size_t i = 0; i < ellipsoid_materials.size(); ++i) {
+            const Material& material = ellipsoid_materials[i];
+            REQUIRE(are_equal(material.diffuse, expected_diffuse));
+            REQUIRE(are_equal(material.specular, expected_specular));
+            REQUIRE(are_equal(material.emission, expected_ellipsoid_emissions[i]));
+            REQUIRE(are_equal(material.shininess, expected_shininess));
         }
 
         REQUIRE(!scene.directional_light_source.has_value());
         REQUIRE(scene.point_light_sources.empty());
+
+        REQUIRE(are_equal(scene.ambient, Colour{0.0, 0.0, 0.0}));
     }
 }

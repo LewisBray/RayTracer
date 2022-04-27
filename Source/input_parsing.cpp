@@ -31,15 +31,16 @@ static Command parse_command(const std::string& str) {
 
     std::string token;
     std::stringstream token_stream{str};
-    while (std::getline(token_stream, token, ' '))
-    {
-        if (token.empty())
+    while (std::getline(token_stream, token, ' ')) {
+        if (token.empty()) {
             continue;
+        }
 
-        if (command.name.empty())
+        if (command.name.empty()) {
             command.name = token;
-        else
+        } else {
             command.params.push_back(token);
+        }
     }
 
     return command;
@@ -69,7 +70,7 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
     std::vector<Matrix> inverse_transform_stack;
 
     // Lighting
-    Colour current_ambient{0.2, 0.2, 0.2};
+    scene.ambient = Colour{0.2, 0.2, 0.2};
     scene.directional_light_source = std::nullopt;
     scene.attenuation_parameters = AttenuationParameters{1.0, 0.0, 0.0};
 
@@ -183,7 +184,6 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
             const Vector b = transform * vertices[b_index];
             const Vector c = transform * vertices[c_index];
             scene.triangles.emplace_back(Triangle{a, b, c});
-            scene.triangle_ambients.emplace_back(current_ambient);
             scene.triangle_materials.emplace_back(current_material);
         } else if (command.name == "sphere") {
             const std::vector<std::string>& params = command.params;
@@ -213,7 +213,6 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
 
             scene.ellipsoids.emplace_back(Ellipsoid{centre, radius, inverse_transform});
             scene.ellipsoid_transforms.emplace_back(transform);
-            scene.ellipsoid_ambients.emplace_back(current_ambient);
             scene.ellipsoid_materials.emplace_back(current_material);
         } else if (command.name == "pushTransform") {
             if (!command.params.empty()) {
@@ -335,9 +334,9 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "'ambient' command should have 3 floating point parameters.";
             }
             
-            current_ambient.red = std::stor(params[0]);
-            current_ambient.green = std::stor(params[1]);
-            current_ambient.blue = std::stor(params[2]);
+            scene.ambient.red = std::stor(params[0]);
+            scene.ambient.green = std::stor(params[1]);
+            scene.ambient.blue = std::stor(params[2]);
         } else if (command.name == "diffuse") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {

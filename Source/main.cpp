@@ -48,10 +48,8 @@ int main(const int argc, const char* const argv[]) {
     const Scene& scene = file_info.scene;
     
     std::cout << "Triangles:\n";
-    for (std::size_t i = 0; i < scene.triangles.size(); ++i) {
-        const Triangle& triangle = scene.triangles[i];
-        const Colour& ambient = scene.triangle_ambients[i];
-        std::cout << '\t' << triangle.a << ", " << triangle.b << ", " << triangle.c << ": " << to_string(ambient) << std::endl;
+    for (const Triangle& triangle : scene.triangles) {
+        std::cout << '\t' << triangle.a << ", " << triangle.b << ", " << triangle.c << std::endl;
     }
     
     std::cout << "Ellipsoids:\n";
@@ -59,8 +57,7 @@ int main(const int argc, const char* const argv[]) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Sphere& sphere = ellipsoid.sphere;
         const Vector centre = scene.ellipsoid_transforms[i] * sphere.centre;
-        const Colour& ambient = scene.ellipsoid_ambients[i];
-        std::cout << '\t' << centre << ", " << sphere.radius << ": " << to_string(ambient) << std::endl;
+        std::cout << '\t' << centre << ", " << sphere.radius << std::endl;
     }
 
     if (scene.directional_light_source.has_value()) {
@@ -73,8 +70,10 @@ int main(const int argc, const char* const argv[]) {
 
     std::cout << "Point lights:\n";
     for (const PointLightSource& point_light_source : scene.point_light_sources) {
-        std::cout << "Position: " << point_light_source.position << " Colour: " << to_string(point_light_source.colour) << std::endl;
+        std::cout << "\tPosition: " << point_light_source.position << " Colour: " << to_string(point_light_source.colour) << std::endl;
     }
+
+    std::cout << "Ambient: (" << scene.ambient.red << ", " << scene.ambient.green << ", " << scene.ambient.blue << ')' << std::endl;
 
     std::cout << "Max recursion depth:\n\t" << file_info.max_recursion_depth << std::endl;
 

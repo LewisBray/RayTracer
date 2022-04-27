@@ -4,14 +4,15 @@ size 640 480
 
 camera 0 -4 4 0 -1 0 0 1 1 45
 
-output scene.png
+ambient 0 0 0
 
+output scene.png
 
 # Spheres
 
 pushTransform
 
-ambient 0 1 0
+emission 0 1 0
 popTransform 
 pushTransform 
 translate  0 0 0.5
@@ -19,7 +20,7 @@ rotate 0 0 1 45
 scale 1.0 0.25 0.25 
 sphere 0 0 0 1
 
-ambient 1 0 0
+emission 1 0 0
 popTransform
 pushTransform 
 translate  0 0 0.5
@@ -27,28 +28,28 @@ rotate 0 0 1 -45
 scale 1.0 0.25 0.25 
 sphere 0 0 0 1
 
-ambient 0 1 1 
+emission 0 1 1 
 popTransform
 pushTransform
 translate -1.5 -.8 0.65
 scale 0.4 0.4 0.4
 sphere 0 0 0 1
 
-ambient 0 1 1 
+emission 0 1 1 
 popTransform
 pushTransform
 translate 1.5 -.8 0.65
 scale 0.4 0.4 0.4
 sphere 0 0 0 1
 
-ambient 0 1 1 
+emission 0 1 1 
 popTransform
 pushTransform
 translate 1.5 .8 0.65
 scale 0.4 0.4 0.4
 sphere 0 0 0 1
 
-ambient 0 1 1 
+emission 0 1 1 
 popTransform
 pushTransform
 translate -1.5 .8 0.65
