@@ -6,6 +6,8 @@
 #include <sstream>
 #include <variant>
 
+#include <chrono>
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "include/stb_image_write.h"
 
@@ -77,16 +79,44 @@ int main(const int argc, const char* const argv[]) {
 
     std::cout << "Max recursion depth:\n\t" << file_info.max_recursion_depth << std::endl;
 
+    auto start = std::chrono::steady_clock::now();
+
+    const Vector camera_basis_k = normalise(camera.look_at - camera.eye);
+    const Vector camera_basis_i = normalise(camera.up ^ camera_basis_k);
+    const Vector camera_basis_j = camera_basis_k ^ camera_basis_i;
+
+    const BasisVectors camera_basis_vectors {
+        camera_basis_i,
+        camera_basis_j,
+        camera_basis_k
+    };
+
+    const Dimensions half_image_dimensions_world {
+        std::tan(0.5f * to_radians(camera.field_of_view.x)),
+        std::tan(0.5f * to_radians(camera.field_of_view.y))
+    };
+
+    const Dimensions half_image_dimensions_pixels {
+        0.5f * static_cast<float>(image.width),
+        0.5f * static_cast<float>(image.height)
+    };
+
     for (int y = 0; y < image.height; ++y) {
         for (int x = 0; x < image.width; ++x) {
-            const Ray ray = ray_through_pixel(camera, x, y, image);
+            const Vector ray_direction = ray_direction_through_pixel(x, y, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
+            const Ray ray{camera.eye, ray_direction};
             const Colour colour = intersect(ray, scene);
             unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
-            pixel[0] = static_cast<unsigned char>(colour.red * 255);
-            pixel[1] = static_cast<unsigned char>(colour.green * 255);
-            pixel[2] = static_cast<unsigned char>(colour.blue * 255);
+            pixel[0] = static_cast<unsigned char>(colour.red * 255.0f);
+            pixel[1] = static_cast<unsigned char>(colour.green * 255.0f);
+            pixel[2] = static_cast<unsigned char>(colour.blue * 255.0f);
         }
     }
+
+    auto end = std::chrono::steady_clock::now();
+
+    auto diff = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Ray tracing time: " << diff.count() << std::endl;
 
     stbi_write_png(image.filename.c_str(), image.width, image.height, 3, image.pixels, 3 * image.width);
     

@@ -9,8 +9,8 @@
 #include <string>
 
 struct FieldOfView {
-    real x;
-    real y;
+    float x;
+    float y;
 };
 
 struct Camera {
@@ -26,9 +26,9 @@ struct Ray {
 };
 
 struct Colour {
-    real red;
-    real green;
-    real blue;
+    float red;
+    float green;
+    float blue;
 };
 
 struct DirectionalLightSource {
@@ -45,13 +45,13 @@ struct Material {
     Colour diffuse;
     Colour specular;
     Colour emission;
-    real shininess;
+    float shininess;
 };
 
 struct AttenuationParameters {
-    real constant;
-    real linear;
-    real quadratic;
+    float constant;
+    float linear;
+    float quadratic;
 };
 
 struct Scene {
@@ -76,11 +76,29 @@ struct Image {
     std::string filename;
 };
 
-Ray ray_through_pixel(const Camera& camera, int x, int y, const Image& image) noexcept;
+struct BasisVectors {
+    Vector i;
+    Vector j;
+    Vector k;
+};
+
+struct Dimensions {
+    float width;
+    float height;
+};
+
+Vector ray_direction_through_pixel(
+    int pixel_x,
+    int pixel_y,
+    const BasisVectors& camera_basis_vectors,
+    const Dimensions& half_image_dimensions_world,
+    const Dimensions& half_image_dimensions_pixels
+) noexcept;
+
 Colour intersect(const Ray& ray, const Scene& scene) noexcept;
 
 // Exposed at the moment for testing but ultimately should be static
-std::optional<real> intersect(const Ray& ray, const Triangle& triangle) noexcept;
-std::optional<std::pair<real, real>> intersect(const Ray& ray, const Sphere& sphere) noexcept;
+std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept;
+std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& sphere) noexcept;
 
 #endif
