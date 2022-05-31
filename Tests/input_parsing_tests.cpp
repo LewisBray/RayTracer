@@ -26,7 +26,7 @@ static bool are_equal(const Sphere& lhs, const Sphere& rhs) noexcept {
 }
 
 static bool are_equal(const Ellipsoid& lhs, const Ellipsoid& rhs) noexcept {
-    return are_equal(lhs.sphere, rhs.sphere) && are_equal(lhs.inverse_transform, rhs.inverse_transform);
+    return are_equal(lhs.inverse_transform, rhs.inverse_transform);
 }
 
 TEST_CASE("parse_input_file", "[parse_input_file]") {
@@ -191,45 +191,39 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             REQUIRE(are_equal(material.shininess, expected_shininess));
         }
 
-        const std::array<Ellipsoid, 21> expected_ellipsoids {
-            Ellipsoid{Sphere{Vector{1.0f, 0.0f, 0.0f}, 0.15f}, identity_matrix()},
+        const std::array<Sphere, 21> expected_spheres {
+            Sphere{Vector{1.0f, 0.0f, 0.0f}, 0.15f},
 
-            Ellipsoid{Sphere{Vector{-0.5f, 1.0f, -0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, 1.0f, 0.5f}, 0.15f}, identity_matrix()},
+            Sphere{Vector{-0.5f, 1.0f, -0.5f}, 0.15f},
+            Sphere{Vector{0.5f, 1.0f, 0.5f}, 0.15f},
 
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-0.5f, -0.5f, 1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, 0.5f, 1.0f}, 0.15f}, identity_matrix()},
+            Sphere{Vector{0.0f, 0.0f, 1.0f}, 0.15f},
+            Sphere{Vector{-0.5f, -0.5f, 1.0f}, 0.15f},
+            Sphere{Vector{0.5f, 0.5f, 1.0f}, 0.15f},
 
-            Ellipsoid{Sphere{Vector{-1.0f, -0.5f, -0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-1.0f, -0.5f, 0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-1.0f, 0.5f, 0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-1.0f, 0.5f, -0.5f}, 0.15f}, identity_matrix()},
+            Sphere{Vector{-1.0f, -0.5f, -0.5f}, 0.15f},
+            Sphere{Vector{-1.0f, -0.5f, 0.5f}, 0.15f},
+            Sphere{Vector{-1.0f, 0.5f, 0.5f}, 0.15f},
+            Sphere{Vector{-1.0f, 0.5f, -0.5f}, 0.15f},
 
-            Ellipsoid{Sphere{Vector{-0.5f, -1.0f, -0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-0.5f, -1.0f, 0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, -1.0f, 0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, -1.0f, -0.5f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.0f, -1.0f, 0.0f}, 0.15f}, identity_matrix()},
+            Sphere{Vector{-0.5f, -1.0f, -0.5f}, 0.15f},
+            Sphere{Vector{-0.5f, -1.0f, 0.5f}, 0.15f},
+            Sphere{Vector{0.5f, -1.0f, 0.5f}, 0.15f},
+            Sphere{Vector{0.5f, -1.0f, -0.5f}, 0.15f},
+            Sphere{Vector{0.0f, -1.0f, 0.0f}, 0.15f},
 
-            Ellipsoid{Sphere{Vector{-0.5f, -0.5f, -1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-0.5f, 0.0f, -1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{-0.5f, 0.5f, -1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, -0.5f, -1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, 0.0f, -1.0f}, 0.15f}, identity_matrix()},
-            Ellipsoid{Sphere{Vector{0.5f, 0.5f, -1.0f}, 0.15f}, identity_matrix()}
+            Sphere{Vector{-0.5f, -0.5f, -1.0f}, 0.15f},
+            Sphere{Vector{-0.5f, 0.0f, -1.0f}, 0.15f},
+            Sphere{Vector{-0.5f, 0.5f, -1.0f}, 0.15f},
+            Sphere{Vector{0.5f, -0.5f, -1.0f}, 0.15f},
+            Sphere{Vector{0.5f, 0.0f, -1.0f}, 0.15f},
+            Sphere{Vector{0.5f, 0.5f, -1.0f}, 0.15f}
         };
 
-        const std::vector<Ellipsoid>& ellipsoids = scene.ellipsoids;
-        REQUIRE(ellipsoids.size() == expected_ellipsoids.size());
-        for (std::size_t i = 0; i < ellipsoids.size(); ++i) {
-            REQUIRE(are_equal(ellipsoids[i], expected_ellipsoids[i]));
-        }
-
-        const std::vector<Matrix>& ellipsoid_transforms = scene.ellipsoid_transforms;
-        REQUIRE(ellipsoid_transforms.size() == expected_ellipsoids.size());
-        for (const Matrix& ellipsoid_transform : ellipsoid_transforms) {
-            REQUIRE(are_equal(ellipsoid_transform, identity_matrix()));
+        const std::vector<Sphere>& spheres = scene.spheres;
+        REQUIRE(spheres.size() == expected_spheres.size());
+        for (std::size_t i = 0; i < spheres.size(); ++i) {
+            REQUIRE(are_equal(spheres[i], expected_spheres[i]));
         }
 
         const Material expected_material {
@@ -239,9 +233,9 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             0.0f
         };
 
-        const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;
-        for (const Material& ellipsoid_material : ellipsoid_materials) {
-            REQUIRE(are_equal(ellipsoid_material, expected_material));
+        const std::vector<Material>& sphere_materials = scene.sphere_materials;
+        for (const Material& sphere_material : sphere_materials) {
+            REQUIRE(are_equal(sphere_material, expected_material));
         }
 
         REQUIRE(!scene.directional_light_source.has_value());
@@ -274,32 +268,42 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
         REQUIRE(scene.triangles.empty());
         REQUIRE(scene.triangle_materials.empty());
 
+        const std::array<Sphere, 4> expected_spheres = {
+            Sphere{Vector{-1.5f, -0.8f, 0.65f}, 0.4f},
+            Sphere{Vector{1.5f, -0.8f, 0.65f}, 0.4f},
+            Sphere{Vector{1.5f, 0.8f, 0.65f}, 0.4f},
+            Sphere{Vector{-1.5f, 0.8f, 0.65f}, 0.4f}
+        };
+
+        const std::vector<Sphere>& spheres = scene.spheres;
+        REQUIRE(spheres.size() == expected_spheres.size());
+        for (std::size_t i = 0; i < spheres.size(); ++i) {
+            REQUIRE(are_equal(spheres[i], expected_spheres[i]));
+        }
+
+        const Colour expected_diffuse{0.0f, 0.0f, 0.0f};
+        const Colour expected_specular{0.0f, 0.0f, 0.0f};
+        const float expected_shininess = 0.0f;
+
+        const Colour expected_sphere_emission{0.0f, 1.0f, 1.0f};
+        const std::vector<Material>& sphere_materials = scene.sphere_materials;
+        REQUIRE(sphere_materials.size() == spheres.size());
+        for (const Material& material : sphere_materials) {
+            REQUIRE(are_equal(material.diffuse, expected_diffuse));
+            REQUIRE(are_equal(material.specular, expected_specular));
+            REQUIRE(are_equal(material.emission, expected_sphere_emission));
+            REQUIRE(are_equal(material.shininess, expected_shininess));
+        }
+
         const float angle = to_radians(45.0f);
-        const std::array<Matrix, 6> expected_ellipsoid_transforms {
+        const std::array<Ellipsoid, 2> expected_ellipsoids {
+            Ellipsoid{scaling_matrix(1.0f, 4.0f, 4.0f) * rotation_matrix(-angle, 0.0f, 0.0f, 1.0f) * translation_matrix(0.0f, 0.0f, -0.5f)},
+            Ellipsoid{scaling_matrix(1.0f, 4.0f, 4.0f) * rotation_matrix(angle, 0.0f, 0.0f, 1.0f) * translation_matrix(0.0f, 0.0f, -0.5f)}
+        };
+
+        const std::array<Matrix, 2> expected_ellipsoid_transforms {
             translation_matrix(0.0f, 0.0f, 0.5f) * rotation_matrix(angle, 0.0f, 0.0f, 1.0f) * scaling_matrix(1.0f, 0.25f, 0.25f),
-            translation_matrix(0.0f, 0.0f, 0.5f) * rotation_matrix(-angle, 0.0f, 0.0f, 1.0f) * scaling_matrix(1.0f, 0.25f, 0.25f),
-            translation_matrix(-1.5f, -0.8f, 0.65f) * scaling_matrix(0.4f, 0.4f, 0.4f),
-            translation_matrix(1.5f, -0.8f, 0.65f) * scaling_matrix(0.4f, 0.4f, 0.4f),
-            translation_matrix(1.5f, 0.8f, 0.65f) * scaling_matrix(0.4f, 0.4f, 0.4f),
-            translation_matrix(-1.5f, 0.8f, 0.65f) * scaling_matrix(0.4f, 0.4f, 0.4f)
-        };
-
-        const std::array<Matrix, 6> expected_ellipsoid_inverse_transforms {
-            scaling_matrix(1.0f, 4.0f, 4.0f) * rotation_matrix(-angle, 0.0f, 0.0f, 1.0f) * translation_matrix(0.0f, 0.0f, -0.5f),
-            scaling_matrix(1.0f, 4.0f, 4.0f) * rotation_matrix(angle, 0.0f, 0.0f, 1.0f) * translation_matrix(0.0f, 0.0f, -0.5f),
-            scaling_matrix(2.5f, 2.5f, 2.5f) * translation_matrix(1.5f, 0.8f, -0.65f),
-            scaling_matrix(2.5f, 2.5f, 2.5f) * translation_matrix(-1.5f, 0.8f, -0.65f),
-            scaling_matrix(2.5f, 2.5f, 2.5f) * translation_matrix(-1.5f, -0.8f, -0.65f),
-            scaling_matrix(2.5f, 2.5f, 2.5f) * translation_matrix(1.5f, -0.8f, -0.65f)
-        };
-
-        const std::array<Ellipsoid, 6> expected_ellipsoids {
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 0.0f}, 1.0f}, expected_ellipsoid_inverse_transforms[0]},
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 0.0f}, 1.0f}, expected_ellipsoid_inverse_transforms[1]},
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 0.0f}, 1.0f}, expected_ellipsoid_inverse_transforms[2]},
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 0.0f}, 1.0f}, expected_ellipsoid_inverse_transforms[3]},
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 0.0f}, 1.0f}, expected_ellipsoid_inverse_transforms[4]},
-            Ellipsoid{Sphere{Vector{0.0f, 0.0f, 0.0f}, 1.0f}, expected_ellipsoid_inverse_transforms[5]}
+            translation_matrix(0.0f, 0.0f, 0.5f) * rotation_matrix(-angle, 0.0f, 0.0f, 1.0f) * scaling_matrix(1.0f, 0.25f, 0.25f)
         };
 
         const std::vector<Ellipsoid>& ellipsoids = scene.ellipsoids;
@@ -314,17 +318,9 @@ TEST_CASE("parse_input_file", "[parse_input_file]") {
             REQUIRE(are_equal(ellipsoid_transforms[i], expected_ellipsoid_transforms[i]));
         }
 
-        const Colour expected_diffuse{0.0f, 0.0f, 0.0f};
-        const Colour expected_specular{0.0f, 0.0f, 0.0f};
-        const float expected_shininess = 0.0f;
-
-        const std::array<Colour, 6> expected_ellipsoid_emissions{ 
+        const std::array<Colour, 2> expected_ellipsoid_emissions{ 
             Colour{0.0f, 1.0f, 0.0f},
-            Colour{1.0f, 0.0f, 0.0f},
-            Colour{0.0f, 1.0f, 1.0f},
-            Colour{0.0f, 1.0f, 1.0f},
-            Colour{0.0f, 1.0f, 1.0f},
-            Colour{0.0f, 1.0f, 1.0f}
+            Colour{1.0f, 0.0f, 0.0f}
         };
 
         const std::vector<Material>& ellipsoid_materials = scene.ellipsoid_materials;

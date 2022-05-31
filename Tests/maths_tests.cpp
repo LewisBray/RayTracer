@@ -124,8 +124,7 @@ TEST_CASE("Matrix", "[Matrix]") {
         const Matrix answer = {
             1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, 2.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 3.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
+            0.0f, 0.0f, 3.0f, 0.0f
         };
         REQUIRE(are_equal(m, answer));
     }
@@ -135,8 +134,7 @@ TEST_CASE("Matrix", "[Matrix]") {
         const Matrix answer = {
             1.0f, 0.0f, 0.0f, 4.0f,
             0.0f, 1.0f, 0.0f, 5.0f,
-            0.0f, 0.0f, 1.0f, 6.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
+            0.0f, 0.0f, 1.0f, 6.0f
         };
         REQUIRE(are_equal(m, answer));
     }
@@ -146,8 +144,7 @@ TEST_CASE("Matrix", "[Matrix]") {
         const Matrix answer1 = {
             1.0f, 0.0f,  0.0f, 0.0f,
             0.0f, 0.0f, -1.0f, 0.0f,
-            0.0f, 1.0f,  0.0f, 0.0f,
-            0.0f, 0.0f,  0.0f, 1.0f
+            0.0f, 1.0f,  0.0f, 0.0f
         };
         REQUIRE(are_equal(m1, answer1));
 
@@ -156,8 +153,7 @@ TEST_CASE("Matrix", "[Matrix]") {
         const Matrix answer2 = {
             0.5f * (1.0f + root_2_inverse), 0.5f * (1.0f - root_2_inverse),           0.5f, 0.0f,
             0.5f * (1.0f - root_2_inverse), 0.5f * (1.0f + root_2_inverse),          -0.5f, 0.0f,
-                                     -0.5f,                           0.5f, root_2_inverse, 0.0f,
-                                      0.0f,                           0.0f,           0.0f, 1.0f
+                                     -0.5f,                           0.5f, root_2_inverse, 0.0f
         };
         REQUIRE(are_equal(m2, answer2));
     }
@@ -194,14 +190,12 @@ TEST_CASE("Matrix", "[Matrix]") {
             const Matrix m2 = {
                  1.0f,  2.0f,  3.0f,  4.0f,
                  5.0f,  6.0f,  7.0f,  8.0f,
-                 9.0f, 10.0f, 11.0f, 12.0f,
-                 0.0f,  0.0f,  0.0f,  1.0f
+                 9.0f, 10.0f, 11.0f, 12.0f
             };
             const Matrix answer2 = {
                  38.0f,  44.0f,  50.0f,  60.0f,
                  98.0f, 116.0f, 134.0f, 160.0f,
-                158.0f, 188.0f, 218.0f, 260.0f,
-                  0.0f,   0.0f,   0.0f,   1.0f
+                158.0f, 188.0f, 218.0f, 260.0f
             };
             REQUIRE(are_equal(m2 * m2, answer2));
         }
@@ -252,12 +246,9 @@ TEST_CASE("shape_normals", "[shape_normals]") {
     }
 
     SECTION("Ellipsoid") {
-        const Vector origin{0.0f, 0.0f, 0.0f};
-        const float radius = 2.0f;
-
-        const float x_scale = 3.0f;
-        const float y_scale = 2.0f;
-        const float z_scale = 1.0f;
+        const float x_scale = 6.0f;
+        const float y_scale = 4.0f;
+        const float z_scale = 2.0f;
         const Matrix scale = scaling_matrix(x_scale, y_scale, z_scale);
         const Matrix scale_inverse = scaling_matrix(1.0f / x_scale, 1.0f / y_scale, 1.0f / z_scale);
 
@@ -274,8 +265,7 @@ TEST_CASE("shape_normals", "[shape_normals]") {
         const Matrix transform = translate * rotate * scale;
         const Matrix transform_inverse = scale_inverse * rotate_inverse * translate_inverse;
 
-        const Sphere sphere{origin, radius};
-        const Ellipsoid ellipsoid{sphere, transform_inverse};
+        const Ellipsoid ellipsoid{transform_inverse};
 
         const Vector unit_normal1 = unit_surface_normal(ellipsoid, transform * i);
         REQUIRE(are_equal(unit_normal1, j));
