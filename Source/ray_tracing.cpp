@@ -10,6 +10,8 @@
 
 // Intersection functions
 std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept {
+    assert(are_equal(magnitude(ray.direction), 1.0f));
+
     const Vector a_to_b = triangle.b - triangle.a;
     const Vector a_to_c = triangle.c - triangle.a;
 
@@ -47,15 +49,67 @@ std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& s
     const float intersections_mid_point_distance_squared = intersections_mid_point_distance * intersections_mid_point_distance;
     const float sphere_centre_to_intersections_mid_point_squared = ray_start_to_sphere_centre_distance_squared - intersections_mid_point_distance_squared;
     const float sphere_radius_squared = sphere.radius * sphere.radius;
-    if (sphere_centre_to_intersections_mid_point_squared > sphere_radius_squared) {
+    const float intersections_mid_point_to_intersections_distance_squared = sphere_radius_squared - sphere_centre_to_intersections_mid_point_squared;
+    if (intersections_mid_point_to_intersections_distance_squared < 0.0f) {
         return std::nullopt;
     }
 
-    const float intersections_mid_point_to_intersections_distance = std::sqrt(sphere_radius_squared - sphere_centre_to_intersections_mid_point_squared);
+    const float intersections_mid_point_to_intersections_distance = std::sqrt(intersections_mid_point_to_intersections_distance_squared);
     const float intersection_distance_1 = intersections_mid_point_distance - intersections_mid_point_to_intersections_distance;
     const float intersection_distance_2 = intersections_mid_point_distance + intersections_mid_point_to_intersections_distance;
 
     return std::pair{intersection_distance_1, intersection_distance_2};
+}
+
+static std::optional<std::pair<float, float>> intersect_with_unit_sphere(const Ray& ray) noexcept {
+    assert(are_equal(magnitude(ray.direction), 1.0f));
+
+    const float intersections_mid_point_distance = -1.0f * ray.start * ray.direction;
+
+    const float ray_start_magnitude_squared = ray.start * ray.start;
+    const float intersections_mid_point_distance_squared = intersections_mid_point_distance * intersections_mid_point_distance;
+    const float sphere_centre_to_intersections_mid_point_squared = ray_start_magnitude_squared - intersections_mid_point_distance_squared;
+    const float intersections_mid_point_to_intersections_distance_squared = 1.0f - sphere_centre_to_intersections_mid_point_squared;
+    if (intersections_mid_point_to_intersections_distance_squared < 0.0f) {
+        return std::nullopt;
+    }
+
+    const float intersections_mid_point_to_intersections_distance = std::sqrt(intersections_mid_point_to_intersections_distance_squared);
+    const float intersection_distance_1 = intersections_mid_point_distance - intersections_mid_point_to_intersections_distance;
+    const float intersection_distance_2 = intersections_mid_point_distance + intersections_mid_point_to_intersections_distance;
+
+    return std::pair{intersection_distance_1, intersection_distance_2};
+}
+
+std::pair<float, float> intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept {
+    static_assert(std::numeric_limits<float>::is_iec559);
+    assert(are_equal(magnitude(ray.direction), 1.0f));  // ensures a finite intersection time
+
+    const float inverse_x = 1.0f / ray.direction.x;
+    const float min_x_plane_intersection_time = (aabb.min_x - ray.start.x) * inverse_x;
+    const float max_x_plane_intersection_time = (aabb.max_x - ray.start.x) * inverse_x;
+
+    const float min_x_intersection_time = std::min(min_x_plane_intersection_time, max_x_plane_intersection_time);
+    const float max_x_intersection_time = std::max(min_x_plane_intersection_time, max_x_plane_intersection_time);
+
+    const float inverse_y = 1.0f / ray.direction.y;
+    const float min_y_plane_intersection_time = (aabb.min_y - ray.start.y) * inverse_y;
+    const float max_y_plane_intersection_time = (aabb.max_y - ray.start.y) * inverse_y;
+
+    const float min_y_intersection_time = std::min(min_y_plane_intersection_time, max_y_plane_intersection_time);
+    const float max_y_intersection_time = std::max(min_y_plane_intersection_time, max_y_plane_intersection_time);
+
+    const float inverse_z = 1.0f / ray.direction.z;
+    const float min_z_plane_intersection_time = (aabb.min_z - ray.start.z) * inverse_z;
+    const float max_z_plane_intersection_time = (aabb.max_z - ray.start.z) * inverse_z;
+
+    const float min_z_intersection_time = std::min(min_z_plane_intersection_time, max_z_plane_intersection_time);
+    const float max_z_intersection_time = std::max(min_z_plane_intersection_time, max_z_plane_intersection_time);
+
+    const float min_intersection_time = std::max(min_z_intersection_time, std::max(min_y_intersection_time, min_x_intersection_time));
+    const float max_intersection_time = std::min(max_z_intersection_time, std::min(max_y_intersection_time, max_x_intersection_time));
+
+    return std::pair{min_intersection_time, max_intersection_time};
 }
 
 static Vector transform_direction(const Matrix& m, const Vector& v) noexcept {
@@ -106,21 +160,33 @@ static float attenuation(const AttenuationParameters& attenuation_parameters, co
 
 // Light source path checking functions
 static bool path_is_blocked(const Vector& start, const PointLightSource& light, const Scene& scene) noexcept {
-    const Vector start_to_destination = light.position - start;
-    const float distance_to_destination = magnitude(start_to_destination);
-    const Ray ray{start, start_to_destination / distance_to_destination};
+    const Vector start_to_light = light.position - start;
+    const float distance_to_light = magnitude(start_to_light);
+    const Ray ray{start, start_to_light / distance_to_light};
 
     for (const Triangle& triangle : scene.triangles) {
         const std::optional<float> intersection_distance = intersect(ray, triangle);
-        if (intersection_distance.has_value() && intersection_distance.value() < distance_to_destination) {
+        if (intersection_distance.has_value() && intersection_distance.value() < distance_to_light) {
             return true;
+        }
+    }
+
+    for (const Sphere& sphere : scene.spheres) {
+        const std::optional<std::pair<float, float>> intersection_distances = intersect(ray, sphere);
+        if (intersection_distances.has_value()) {
+            const float intersection_distance_1 = intersection_distances.value().first;
+            const float intersection_distance_2 = intersection_distances.value().second;
+            if ((greater_than(intersection_distance_1, 0.0f) && less_than(intersection_distance_1, distance_to_light))
+                || (greater_than(intersection_distance_2, 0.0f) && less_than(intersection_distance_2, distance_to_light))) {
+                return true;
+            }
         }
     }
 
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-        const std::optional<std::pair<float, float>> transformed_intersection_distances = intersect(transformed_ray, ellipsoid.sphere);
+        const std::optional<std::pair<float, float>> transformed_intersection_distances = intersect_with_unit_sphere(transformed_ray);
         if (transformed_intersection_distances.has_value()) {
             const Vector transformed_light_position = ellipsoid.inverse_transform * light.position;
             const float transformed_distance_to_light = magnitude(transformed_light_position - transformed_ray.start);
@@ -148,10 +214,21 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
         }
     }
 
+    for (const Sphere& sphere : scene.spheres) {
+        const std::optional<std::pair<float, float>> intersection_distances = intersect(ray, sphere);
+        if (intersection_distances.has_value()) {
+            const float intersection_distance_1 = intersection_distances.value().first;
+            const float intersection_distance_2 = intersection_distances.value().second;
+            if (greater_than(intersection_distance_1, 0.0f) || greater_than(intersection_distance_2, 0.0f)) {
+                return true;
+            }
+        }
+    }
+
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-        const std::optional<std::pair<float, float>> transformed_intersection_distances = intersect(transformed_ray, ellipsoid.sphere);
+        const std::optional<std::pair<float, float>> transformed_intersection_distances = intersect_with_unit_sphere(transformed_ray);
         if (transformed_intersection_distances.has_value()) {
             const float transformed_intersection_distance_1 = transformed_intersection_distances.value().first;
             const float transformed_intersection_distance_2 = transformed_intersection_distances.value().second;
@@ -199,12 +276,40 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
         }
     }
 
+    std::optional<std::size_t> closest_intersecting_sphere_index = std::nullopt;
+    float closest_sphere_intersection_distance = infinity;
+    for (std::size_t i = 0; i < scene.spheres.size(); ++i) {
+        const std::optional<std::pair<float, float>> intersection_distances = intersect(ray, scene.spheres[i]);
+        if (intersection_distances.has_value()) {
+            const float intersection_distance_1 = intersection_distances.value().first;
+            const float intersection_distance_2 = intersection_distances.value().second;
+
+            const bool intersection_distance_1_is_positive = greater_than(intersection_distance_1, 0.0f);
+            const bool intersection_distance_2_is_positive = greater_than(intersection_distance_2, 0.0f);
+
+            std::optional<float> closest_intersection_distance = std::nullopt;
+            if (intersection_distance_1_is_positive) {
+                closest_intersection_distance = intersection_distance_1;
+            } else if (intersection_distance_2_is_positive) {
+                closest_intersection_distance = intersection_distance_2;
+            }
+
+            if (closest_intersection_distance.has_value()) {
+                const float intersection_distance = closest_intersection_distance.value();
+                if (less_than(intersection_distance, closest_sphere_intersection_distance)) {
+                    closest_intersecting_sphere_index = i;
+                    closest_sphere_intersection_distance = intersection_distance;
+                }
+            }
+        }
+    }
+
     std::optional<std::size_t> closest_intersecting_ellipsoid_index = std::nullopt;
     float closest_ellipsoid_intersection_distance = infinity;
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
         const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-        const std::optional<std::pair<float, float>> transformed_intersection_distances = intersect(transformed_ray, ellipsoid.sphere);
+        const std::optional<std::pair<float, float>> transformed_intersection_distances = intersect_with_unit_sphere(transformed_ray);
         if (transformed_intersection_distances.has_value()) {
             const float transformed_intersection_distance_1 = transformed_intersection_distances.value().first;
             const float transformed_intersection_distance_2 = transformed_intersection_distances.value().second;
@@ -234,13 +339,13 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
     }
 
     Colour colour{0.0f, 0.0f, 0.0f};
-    if (closest_intersecting_triangle_index.has_value() || closest_intersecting_ellipsoid_index.has_value()) {
-        assert(closest_triangle_intersection_distance < infinity || closest_ellipsoid_intersection_distance < infinity);
-        
+    if (closest_intersecting_triangle_index.has_value() || closest_intersecting_sphere_index.has_value() ||closest_intersecting_ellipsoid_index.has_value()) {
+        assert(closest_triangle_intersection_distance < infinity || closest_sphere_intersection_distance < infinity || closest_ellipsoid_intersection_distance < infinity);
+
         Material material{};
         Vector surface_normal{};
         Vector intersection_point{};
-        if (less_than(closest_triangle_intersection_distance, closest_ellipsoid_intersection_distance)) {
+        if (closest_triangle_intersection_distance - closest_sphere_intersection_distance <= tolerance && closest_triangle_intersection_distance - closest_ellipsoid_intersection_distance <= tolerance) {
             assert(closest_intersecting_triangle_index.has_value());
             const std::size_t index = closest_intersecting_triangle_index.value();
             
@@ -251,7 +356,18 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
             surface_normal = unit_surface_normal(triangle);
             
             material = scene.triangle_materials[index];
-        } else {    // ellipsoid is closer
+        } else if (closest_sphere_intersection_distance - closest_triangle_intersection_distance <= tolerance && closest_sphere_intersection_distance - closest_ellipsoid_intersection_distance <= tolerance) {
+            assert(closest_intersecting_sphere_index.has_value());
+            const std::size_t index = closest_intersecting_sphere_index.value();
+
+            intersection_point = ray.start + closest_sphere_intersection_distance * ray.direction;
+
+            assert(index < scene.spheres.size());
+            const Sphere& sphere = scene.spheres[index];
+            surface_normal = unit_surface_normal(sphere, intersection_point);
+
+            material = scene.sphere_materials[index];
+        } else if (closest_ellipsoid_intersection_distance - closest_triangle_intersection_distance <= tolerance && closest_ellipsoid_intersection_distance - closest_sphere_intersection_distance <= tolerance) {
             assert(closest_intersecting_ellipsoid_index.has_value());
             const std::size_t index = closest_intersecting_ellipsoid_index.value();
             
@@ -262,6 +378,8 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept {
             surface_normal = unit_surface_normal(ellipsoid, intersection_point);
             
             material = scene.ellipsoid_materials[index];
+        } else {
+            assert(false);  // this shouldn't be possible
         }
 
         colour = scene.ambient + material.emission;

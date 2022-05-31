@@ -49,8 +49,16 @@ struct Sphere {
 };
 
 struct Ellipsoid {
-    Sphere sphere;
     Matrix inverse_transform;
+};
+
+struct AxisAlignedBoundingBox {
+    float min_x;
+    float max_x;
+    float min_y;
+    float max_y;
+    float min_z;
+    float max_z;
 };
 
 Vector unit_surface_normal(const Triangle& triangle) noexcept;

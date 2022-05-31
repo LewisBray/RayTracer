@@ -53,13 +53,18 @@ int main(const int argc, const char* const argv[]) {
     for (const Triangle& triangle : scene.triangles) {
         std::cout << '\t' << triangle.a << ", " << triangle.b << ", " << triangle.c << std::endl;
     }
+
+    std::cout << "Spheres:\n";
+    for (const Sphere& sphere : scene.spheres) {
+        std::cout << "\tCentre: " << sphere.centre << " radius: " << sphere.radius << std::endl;
+    }
     
     std::cout << "Ellipsoids:\n";
-    for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
-        const Ellipsoid& ellipsoid = scene.ellipsoids[i];
-        const Sphere& sphere = ellipsoid.sphere;
-        const Vector centre = scene.ellipsoid_transforms[i] * sphere.centre;
-        std::cout << '\t' << centre << ", " << sphere.radius << std::endl;
+    for (const Matrix& ellipsoid_transform : scene.ellipsoid_transforms) {
+        std::cout
+            << '(' << ellipsoid_transform[0][0] << ", " << ellipsoid_transform[0][1] << ", " << ellipsoid_transform[0][2] << ", " << ellipsoid_transform[0][3] << ')' << std::endl
+            << '(' << ellipsoid_transform[1][0] << ", " << ellipsoid_transform[1][1] << ", " << ellipsoid_transform[1][2] << ", " << ellipsoid_transform[1][3] << ')' << std::endl
+            << '(' << ellipsoid_transform[2][0] << ", " << ellipsoid_transform[2][1] << ", " << ellipsoid_transform[2][2] << ", " << ellipsoid_transform[2][3] << ")," << std::endl;
     }
 
     if (scene.directional_light_source.has_value()) {
@@ -78,6 +83,14 @@ int main(const int argc, const char* const argv[]) {
     std::cout << "Ambient: (" << scene.ambient.red << ", " << scene.ambient.green << ", " << scene.ambient.blue << ')' << std::endl;
 
     std::cout << "Max recursion depth:\n\t" << file_info.max_recursion_depth << std::endl;
+
+    std::cout << "bounding box: " << std::endl
+              << scene.bounding_box.min_x << std::endl
+              << scene.bounding_box.max_x << std::endl
+              << scene.bounding_box.min_y << std::endl
+              << scene.bounding_box.max_y << std::endl
+              << scene.bounding_box.min_z << std::endl
+              << scene.bounding_box.max_z << std::endl;
 
     auto start = std::chrono::steady_clock::now();
 
@@ -105,11 +118,14 @@ int main(const int argc, const char* const argv[]) {
         for (int x = 0; x < image.width; ++x) {
             const Vector ray_direction = ray_direction_through_pixel(x, y, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
             const Ray ray{camera.eye, ray_direction};
-            const Colour colour = intersect(ray, scene);
-            unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
-            pixel[0] = static_cast<unsigned char>(colour.red * 255.0f);
-            pixel[1] = static_cast<unsigned char>(colour.green * 255.0f);
-            pixel[2] = static_cast<unsigned char>(colour.blue * 255.0f);
+            const std::pair<float, float> bounding_box_intersection_times = intersect(ray, scene.bounding_box);
+            if (bounding_box_intersection_times.second >= bounding_box_intersection_times.first) {
+                const Colour colour = intersect(ray, scene);
+                unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
+                pixel[0] = static_cast<unsigned char>(colour.red * 255.0f);
+                pixel[1] = static_cast<unsigned char>(colour.green * 255.0f);
+                pixel[2] = static_cast<unsigned char>(colour.blue * 255.0f);
+            }
         }
     }
 

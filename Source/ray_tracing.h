@@ -58,9 +58,14 @@ struct Scene {
     std::vector<Triangle> triangles;
     std::vector<Material> triangle_materials;
 
+    std::vector<Sphere> spheres;
+    std::vector<Material> sphere_materials;
+
     std::vector<Ellipsoid> ellipsoids;
     std::vector<Matrix> ellipsoid_transforms;
     std::vector<Material> ellipsoid_materials;
+
+    AxisAlignedBoundingBox bounding_box;
 
     std::optional<DirectionalLightSource> directional_light_source;
     std::vector<PointLightSource> point_light_sources;
@@ -100,5 +105,6 @@ Colour intersect(const Ray& ray, const Scene& scene) noexcept;
 // Exposed at the moment for testing but ultimately should be static
 std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept;
 std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& sphere) noexcept;
+std::pair<float, float> intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept;
 
 #endif

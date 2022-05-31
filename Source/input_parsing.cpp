@@ -10,6 +10,7 @@
 #include <vector>
 #include <string>
 #include <regex>
+#include <cmath>
 
 static bool is_positive_int(const std::string& str) {
     static const std::regex int_regex("[0-9]+");
@@ -68,6 +69,8 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
     Matrix inverse_current_transform = identity_matrix();
     std::vector<Matrix> transform_stack;
     std::vector<Matrix> inverse_transform_stack;
+
+    scene.bounding_box = AxisAlignedBoundingBox{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
     // Lighting
     scene.ambient = Colour{0.2f, 0.2f, 0.2f};
@@ -182,17 +185,31 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
             const Vector c = transform * vertices[c_index];
             scene.triangles.emplace_back(Triangle{a, b, c});
             scene.triangle_materials.emplace_back(current_material);
+
+            // update scene bounding box
+            const float triangle_min_x = std::min(a.x, std::min(b.x, c.x));
+            const float triangle_max_x = std::max(a.x, std::max(b.x, c.x));
+            const float triangle_min_y = std::min(a.y, std::min(b.y, c.y));
+            const float triangle_max_y = std::max(a.y, std::max(b.y, c.y));
+            const float triangle_min_z = std::min(a.z, std::min(b.z, c.z));
+            const float triangle_max_z = std::max(a.z, std::max(b.z, c.z));
+
+            scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, triangle_min_x);
+            scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, triangle_max_x);
+            scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, triangle_min_y);
+            scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, triangle_max_y);
+            scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, triangle_min_z);
+            scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, triangle_max_z);
         } else if (command.name == "sphere") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 4 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'sphere' command should have 3 floating point parameters.";
+                return "'sphere' command should have 4 floating point parameters.";
             }
             
             const float x_centre = std::stof(params[0]);
             const float y_centre = std::stof(params[1]);
             const float z_centre = std::stof(params[2]);
             const float radius = std::stof(params[3]);
-            const Vector centre{x_centre, y_centre, z_centre};
 
             Matrix transform = identity_matrix();
             for (const Matrix& m : transform_stack) {
@@ -208,9 +225,90 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
 
             inverse_transform = inverse_current_transform * inverse_transform;
 
-            scene.ellipsoids.emplace_back(Ellipsoid{centre, radius, inverse_transform});
-            scene.ellipsoid_transforms.emplace_back(transform);
-            scene.ellipsoid_materials.emplace_back(current_material);
+            const float x_scale_squared = transform[0][0] * transform[0][0] + transform[1][0] * transform[1][0] + transform[2][0] * transform[2][0];
+            const float y_scale_squared = transform[0][1] * transform[0][1] + transform[1][1] * transform[1][1] + transform[2][1] * transform[2][1];
+            const float z_scale_squared = transform[0][2] * transform[0][2] + transform[1][2] * transform[1][2] + transform[2][2] * transform[2][2];
+            if (!are_equal(x_scale_squared, y_scale_squared) || !are_equal(y_scale_squared, z_scale_squared)) { // i.e. is ellipsoid, not sphere
+                // ensure ellipsoid sphere has centre at origin
+                if (x_centre != 0.0f || y_centre != 0.0f || z_centre != 0.0f) {
+                    const Matrix centre_translation = translation_matrix(x_centre, y_centre, z_centre);
+                    transform = transform * centre_translation;
+
+                    const Matrix inverse_centre_translation = translation_matrix(-x_centre, -y_centre, -z_centre);
+                    inverse_transform = inverse_centre_translation * inverse_transform;
+                }
+
+                // ensure ellipsoid sphere radius is 1
+                if (radius != 1.0f) {
+                    const Matrix radius_scaling = scaling_matrix(radius, radius, radius);
+                    transform = transform * radius_scaling;
+
+                    const float inverse_radius = 1.0f / radius;
+                    const Matrix inverse_radius_scaling = scaling_matrix(inverse_radius, inverse_radius, inverse_radius);
+                    inverse_transform = inverse_radius_scaling * inverse_transform;
+                }
+
+                scene.ellipsoids.emplace_back(Ellipsoid{inverse_transform});
+                scene.ellipsoid_transforms.emplace_back(transform);
+                scene.ellipsoid_materials.emplace_back(current_material);
+
+                // update scene bounding box
+                const float x_component_magnitude_squared =
+                    transform[0][0] * transform[0][0] +
+                    transform[0][1] * transform[0][1] +
+                    transform[0][2] * transform[0][2];
+                const float x_component_magnitude = std::sqrt(x_component_magnitude_squared);
+
+                const float y_component_magnitude_squared =
+                    transform[1][0] * transform[1][0] +
+                    transform[1][1] * transform[1][1] +
+                    transform[1][2] * transform[1][2];
+                const float y_component_magnitude = std::sqrt(y_component_magnitude_squared);
+
+                const float z_component_magnitude_squared =
+                    transform[2][0] * transform[2][0] +
+                    transform[2][1] * transform[2][1] +
+                    transform[2][2] * transform[2][2];
+                const float z_component_magnitude = std::sqrt(z_component_magnitude_squared);
+
+                const float ellipsoid_min_x = transform[0][3] - x_component_magnitude;
+                const float ellipsoid_max_x = transform[0][3] + x_component_magnitude;
+                const float ellipsoid_min_y = transform[1][3] - y_component_magnitude;
+                const float ellipsoid_max_y = transform[1][3] + y_component_magnitude;
+                const float ellipsoid_min_z = transform[2][3] - z_component_magnitude;
+                const float ellipsoid_max_z = transform[2][3] + z_component_magnitude;
+
+                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, ellipsoid_min_x);
+                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, ellipsoid_max_x);
+                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, ellipsoid_min_y);
+                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, ellipsoid_max_y);
+                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, ellipsoid_min_z);
+                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, ellipsoid_max_z);
+            } else {
+                const Vector centre{x_centre, y_centre, z_centre};
+                const Vector transformed_centre = transform * centre;
+
+                const float axes_scaling = std::sqrt(x_scale_squared);
+                const float scaled_radius = axes_scaling * radius;
+
+                scene.spheres.emplace_back(Sphere{transformed_centre, scaled_radius});
+                scene.sphere_materials.emplace_back(current_material);
+
+                // update scene bounding box
+                const float sphere_min_x = transformed_centre.x - scaled_radius;
+                const float sphere_max_x = transformed_centre.x + scaled_radius;
+                const float sphere_min_y = transformed_centre.y - scaled_radius;
+                const float sphere_max_y = transformed_centre.y + scaled_radius;
+                const float sphere_min_z = transformed_centre.z - scaled_radius;
+                const float sphere_max_z = transformed_centre.z + scaled_radius;
+
+                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, sphere_min_x);
+                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, sphere_max_x);
+                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, sphere_min_y);
+                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, sphere_max_y);
+                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, sphere_min_z);
+                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, sphere_max_z);
+            }
         } else if (command.name == "pushTransform") {
             if (!command.params.empty()) {
                 return "'pushTransform' command does not take any parameters.";

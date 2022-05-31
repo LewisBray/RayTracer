@@ -169,8 +169,8 @@ static Vector transform_direction_by_transpose(const Matrix& m, const Vector& v)
 }
 
 Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Vector& point) noexcept {
-    const Vector point_in_ellipsoid_space = ellipsoid.inverse_transform * point;    
-    const Vector unit_surface_normal_in_ellipsoid_space = unit_surface_normal(ellipsoid.sphere, point_in_ellipsoid_space);
+    const Vector point_in_ellipsoid_space = ellipsoid.inverse_transform * point;
+    const Vector unit_surface_normal_in_ellipsoid_space = normalise(point_in_ellipsoid_space);  // centre at origin and radius 1 in ellipsoid space
     const Vector surface_normal = transform_direction_by_transpose(ellipsoid.inverse_transform, unit_surface_normal_in_ellipsoid_space);
 
     return normalise(surface_normal);
