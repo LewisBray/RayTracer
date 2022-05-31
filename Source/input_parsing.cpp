@@ -288,9 +288,8 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 };
             }
 
-            scene.directional_light_source.value().direction.x = std::stof(params[0]);
-            scene.directional_light_source.value().direction.y = std::stof(params[1]);
-            scene.directional_light_source.value().direction.z = std::stof(params[2]);
+            const Vector non_unit_direction = Vector{std::stof(params[0]), std::stof(params[1]), std::stof(params[2])};
+            scene.directional_light_source.value().direction = normalise(non_unit_direction);
 
             scene.directional_light_source.value().colour.red = std::stof(params[3]);
             scene.directional_light_source.value().colour.green = std::stof(params[4]);
