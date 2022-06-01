@@ -133,7 +133,11 @@ static Colour operator+(const Colour& lhs, const Colour& rhs) noexcept {
     return Colour{lhs.red + rhs.red, lhs.green + rhs.green, lhs.blue + rhs.blue};
 }
 
-static Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept {
+static Colour operator*(const Colour& lhs, const Colour& rhs) noexcept {
+    return Colour{lhs.red * rhs.red, lhs.green * rhs.green, lhs.blue * rhs.blue};
+}
+
+Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept {
     lhs.red += rhs.red;
     lhs.green += rhs.green;
     lhs.blue += rhs.blue;
@@ -141,12 +145,8 @@ static Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept {
     return lhs;
 }
 
-static Colour operator*(const float scalar, const Colour& colour) noexcept {
+Colour operator*(const float scalar, const Colour& colour) noexcept {
     return Colour{scalar * colour.red, scalar * colour.green, scalar * colour.blue};
-}
-
-static Colour operator*(const Colour& lhs, const Colour& rhs) noexcept {
-    return Colour{lhs.red * rhs.red, lhs.green * rhs.green, lhs.blue * rhs.blue};
 }
 
 // Attenuation functions
@@ -245,12 +245,14 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
 Vector ray_direction_through_pixel(
     const int pixel_x,
     const int pixel_y,
+    const float x_offset,
+    const float y_offset,
     const BasisVectors& camera_basis_vectors,
     const Dimensions& half_image_dimensions_world,
     const Dimensions& half_image_dimensions_pixels
 ) noexcept {
-    const float alpha = half_image_dimensions_world.width * (half_image_dimensions_pixels.width - (static_cast<float>(pixel_x) + 0.5f)) / half_image_dimensions_pixels.width;
-    const float beta = half_image_dimensions_world.height * (half_image_dimensions_pixels.height - (static_cast<float>(pixel_y) + 0.5f)) / half_image_dimensions_pixels.height;
+    const float alpha = half_image_dimensions_world.width * (half_image_dimensions_pixels.width - (static_cast<float>(pixel_x) + x_offset)) / half_image_dimensions_pixels.width;
+    const float beta = half_image_dimensions_world.height * (half_image_dimensions_pixels.height - (static_cast<float>(pixel_y) + y_offset)) / half_image_dimensions_pixels.height;
 
     return normalise(alpha * camera_basis_vectors.i + beta * camera_basis_vectors.j + camera_basis_vectors.k);
 }

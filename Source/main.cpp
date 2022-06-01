@@ -114,18 +114,33 @@ int main(const int argc, const char* const argv[]) {
         0.5f * static_cast<float>(image.height)
     };
 
+    constexpr int sqrt_samples_per_pixel = 1;
+    constexpr float inverse_sqrt_samples_per_pixel = 1.0f / static_cast<float>(sqrt_samples_per_pixel);
+    constexpr float inverse_double_sqrt_samples_per_pixel = 0.5f * inverse_sqrt_samples_per_pixel;
+    
+    constexpr int samples_per_pixel = sqrt_samples_per_pixel * sqrt_samples_per_pixel;
+    constexpr float inverse_samples_per_pixel = 1.0f / static_cast<float>(samples_per_pixel);
+
     for (int y = 0; y < image.height; ++y) {
         for (int x = 0; x < image.width; ++x) {
-            const Vector ray_direction = ray_direction_through_pixel(x, y, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
-            const Ray ray{camera.eye, ray_direction};
-            const std::pair<float, float> bounding_box_intersection_times = intersect(ray, scene.bounding_box);
-            if (bounding_box_intersection_times.second >= bounding_box_intersection_times.first) {
-                const Colour colour = intersect(ray, scene);
-                unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
-                pixel[0] = static_cast<unsigned char>(colour.red * 255.0f);
-                pixel[1] = static_cast<unsigned char>(colour.green * 255.0f);
-                pixel[2] = static_cast<unsigned char>(colour.blue * 255.0f);
+            Colour colour{0.0f, 0.0f, 0.0f};
+            for (int sample = 0; sample < samples_per_pixel; ++sample) {
+                const float x_offset = static_cast<float>(sample % sqrt_samples_per_pixel) * inverse_sqrt_samples_per_pixel + inverse_double_sqrt_samples_per_pixel;
+                const float y_offset = static_cast<float>(sample / sqrt_samples_per_pixel) * inverse_sqrt_samples_per_pixel + inverse_double_sqrt_samples_per_pixel;
+
+                const Vector ray_direction = ray_direction_through_pixel(x, y, x_offset, y_offset, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
+                const Ray ray{camera.eye, ray_direction};
+                const std::pair<float, float> bounding_box_intersection_times = intersect(ray, scene.bounding_box);
+                if (bounding_box_intersection_times.second >= bounding_box_intersection_times.first) {
+                    colour += intersect(ray, scene);
+                }
             }
+
+            colour = inverse_samples_per_pixel * colour;
+            unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
+            pixel[0] = static_cast<unsigned char>(colour.red * 255.0f);
+            pixel[1] = static_cast<unsigned char>(colour.green * 255.0f);
+            pixel[2] = static_cast<unsigned char>(colour.blue * 255.0f);
         }
     }
 

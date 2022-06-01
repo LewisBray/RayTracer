@@ -31,6 +31,9 @@ struct Colour {
     float blue;
 };
 
+Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept;
+Colour operator*(const float scalar, const Colour& colour) noexcept;
+
 struct DirectionalLightSource {
     Vector direction;
     Colour colour;
@@ -95,6 +98,8 @@ struct Dimensions {
 Vector ray_direction_through_pixel(
     int pixel_x,
     int pixel_y,
+    float x_offset,
+    float y_offset,
     const BasisVectors& camera_basis_vectors,
     const Dimensions& half_image_dimensions_world,
     const Dimensions& half_image_dimensions_pixels
