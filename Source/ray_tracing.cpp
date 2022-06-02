@@ -121,7 +121,7 @@ static Vector transform_direction(const Matrix& m, const Vector& v) noexcept {
 }
 
 // Ray helper methods
-Ray transform_ray(const Matrix& transform, Ray ray) noexcept {
+static Ray transform_ray(const Matrix& transform, Ray ray) noexcept {
     ray.start = transform * ray.start;
     ray.direction = transform_direction(transform, ray.direction);
 
@@ -243,8 +243,8 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
 
 // Exposed functions
 Vector ray_direction_through_pixel(
-    const int pixel_x,
-    const int pixel_y,
+    const unsigned pixel_x,
+    const unsigned pixel_y,
     const float x_offset,
     const float y_offset,
     const BasisVectors& camera_basis_vectors,
@@ -255,14 +255,6 @@ Vector ray_direction_through_pixel(
     const float beta = half_image_dimensions_world.height * (half_image_dimensions_pixels.height - (static_cast<float>(pixel_y) + y_offset)) / half_image_dimensions_pixels.height;
 
     return normalise(alpha * camera_basis_vectors.i + beta * camera_basis_vectors.j + camera_basis_vectors.k);
-}
-
-#include <iostream>
-
-// TODO: Likely just used for debugging and can probably be removed later
-std::ostream& operator<<(std::ostream& out, const Colour& colour) {
-    out << '(' << colour.red << ", " << colour.green << ", " << colour.blue << ')';
-    return out;
 }
 
 Colour intersect(const Ray& ray, const Scene& scene) noexcept {

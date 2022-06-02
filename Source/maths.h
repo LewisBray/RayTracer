@@ -28,7 +28,8 @@ std::ostream& operator<<(std::ostream& out, const Vector& v);
 float magnitude(const Vector& v);
 Vector normalise(const Vector& v);
 
-using Matrix = std::array<std::array<float, 4>, 3>;
+using MatrixRow = std::array<float, 4>;
+using Matrix = std::array<MatrixRow, 3>;
 
 Vector operator*(const Matrix& m, const Vector& v) noexcept;
 Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept;

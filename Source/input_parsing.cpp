@@ -9,17 +9,37 @@
 #include <cassert>
 #include <vector>
 #include <string>
-#include <regex>
 #include <cmath>
 
 static bool is_positive_int(const std::string& str) {
-    static const std::regex int_regex("[0-9]+");
-    return std::regex_match(str.begin(), str.end(), int_regex);
+    unsigned non_digit_count = 0u;
+    for (const char c : str) {
+        if (c < '0' || c > '9') {
+            ++non_digit_count;
+        }
+    }
+
+    return (non_digit_count == 0u);
 }
 
 static bool is_floating_point(const std::string& str) {
-    static const std::regex floating_point_regex("[-+]?[0-9]*\\.?[0-9]+");
-    return std::regex_match(str.begin(), str.end(), floating_point_regex);
+    int sign_count = 0;
+    unsigned int point_count = 0u;
+    unsigned int non_digit_count = 0u;
+    for (const char c : str) {
+        if (c == '.') {
+            ++point_count;
+        } else if (c == '+') {
+            ++sign_count;
+        } else if (c == '-') {
+            --sign_count;
+        } else if (c < '0' || c > '9') {
+            ++non_digit_count;
+        }
+    }
+
+    bool valid_sign = (-1 <= sign_count && sign_count <= 1);
+    return (point_count <= 1u && valid_sign && non_digit_count == 0u);
 }
 
 struct Command {
@@ -70,6 +90,7 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
     std::vector<Matrix> transform_stack;
     std::vector<Matrix> inverse_transform_stack;
 
+    // bounding boxes
     scene.bounding_box = AxisAlignedBoundingBox{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 
     // Lighting
@@ -103,9 +124,9 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "'size' command should have 2 positive integer parameters.";
             }
                         
-            image.width = std::stoi(params[0]);
-            image.height = std::stoi(params[1]);
-            image.pixels = new unsigned char[image.width * image.height * 3];
+            image.width = static_cast<unsigned>(std::stoi(params[0]));
+            image.height = static_cast<unsigned>(std::stoi(params[1]));
+            image.pixels = new unsigned char[static_cast<std::size_t>(image.width) * static_cast<std::size_t>(image.height) * 3ul];
         } else if (command.name == "output") {
             if (command.params.size() != 1) {
                 return "'output' command should have 1 parameter.";
@@ -127,7 +148,7 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "'maxverts' command should have 1 positive integer parameter.";
             }
             
-            vertices.reserve(std::stoi(command.params[0]));
+            vertices.reserve(std::stoul(command.params[0]));
         } else if (command.name == "camera") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 10 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
@@ -166,10 +187,12 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
                 return "'tri' command should have 3 positive integer parameters.";
             }
             
-            const int a_index = std::stoi(params[0]);
-            const int b_index = std::stoi(params[1]);
-            const int c_index = std::stoi(params[2]);
-            if (std::max({a_index, b_index, c_index}) >= vertices.size()) {
+            const std::size_t a_index = std::stoul(params[0]);   // TODO: this throws if cannot be parsed as int
+            const std::size_t b_index = std::stoul(params[1]);
+            const std::size_t c_index = std::stoul(params[2]);
+
+            const std::size_t vertex_count = vertices.size();
+            if (a_index >= vertex_count || b_index >= vertex_count || c_index >= vertex_count) {
                 return "Vertex index specified in 'tri' command is beyond the number of specified vertices.";
             }
 
@@ -470,5 +493,5 @@ std::variant<FileInfo, const char*> parse_input_file(const char* const filename)
         first_command = false;
     }
 
-    return FileInfo{image, camera, scene, max_recursion_depth};
+    return FileInfo{scene, image, camera, max_recursion_depth};
 }

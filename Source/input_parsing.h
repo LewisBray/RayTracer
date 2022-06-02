@@ -6,11 +6,10 @@
 #include <variant>
 #include <cstdint>
 
-struct FileInfo
-{
+struct FileInfo {
+    Scene scene;
     Image image;
     Camera camera;
-    Scene scene;
     int max_recursion_depth;
 };
 

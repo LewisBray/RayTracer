@@ -57,6 +57,9 @@ struct AttenuationParameters {
     float quadratic;
 };
 
+// Disable padded warning as it's not relevant for this struct
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpadded"
 struct Scene {
     std::vector<Triangle> triangles;
     std::vector<Material> triangle_materials;
@@ -70,16 +73,16 @@ struct Scene {
 
     AxisAlignedBoundingBox bounding_box;
 
-    std::optional<DirectionalLightSource> directional_light_source;
-    std::vector<PointLightSource> point_light_sources;
-
     Colour ambient;
     AttenuationParameters attenuation_parameters;
+    std::vector<PointLightSource> point_light_sources;
+    std::optional<DirectionalLightSource> directional_light_source;
 };
+#pragma clang diagnostic pop
 
 struct Image {
-    int width;
-    int height;
+    unsigned width;
+    unsigned height;
     std::uint8_t* pixels;
     std::string filename;
 };
@@ -96,8 +99,8 @@ struct Dimensions {
 };
 
 Vector ray_direction_through_pixel(
-    int pixel_x,
-    int pixel_y,
+    unsigned pixel_x,
+    unsigned pixel_y,
     float x_offset,
     float y_offset,
     const BasisVectors& camera_basis_vectors,

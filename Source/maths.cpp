@@ -104,25 +104,25 @@ Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept {
 
 Matrix identity_matrix() noexcept {
     return Matrix {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f
+        MatrixRow{1.0f, 0.0f, 0.0f, 0.0f},
+        MatrixRow{0.0f, 1.0f, 0.0f, 0.0f},
+        MatrixRow{0.0f, 0.0f, 1.0f, 0.0f}
     };
 }
 
 Matrix scaling_matrix(const float x_scale, const float y_scale, const float z_scale) noexcept {
     return Matrix {
-        x_scale,    0.0f,    0.0f,    0.0f,
-        0.0f,    y_scale,    0.0f,    0.0f,
-        0.0f,       0.0f, z_scale,    0.0f
+        MatrixRow{x_scale,    0.0f,    0.0f,    0.0f},
+        MatrixRow{0.0f,    y_scale,    0.0f,    0.0f},
+        MatrixRow{0.0f,       0.0f, z_scale,    0.0f}
     };
 }
 
 Matrix translation_matrix(const float x_offset, const float y_offset, const float z_offset) noexcept {
     return Matrix {
-        1.0f, 0.0f, 0.0f, x_offset,
-        0.0f, 1.0f, 0.0f, y_offset,
-        0.0f, 0.0f, 1.0f, z_offset
+        MatrixRow{1.0f, 0.0f, 0.0f, x_offset},
+        MatrixRow{0.0f, 1.0f, 0.0f, y_offset},
+        MatrixRow{0.0f, 0.0f, 1.0f, z_offset}
     };
 }
 

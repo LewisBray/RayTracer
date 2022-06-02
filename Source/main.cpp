@@ -8,8 +8,11 @@
 
 #include <chrono>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Weverything"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "include/stb_image_write.h"
+#pragma clang diagnostic pop
 
 int main(const int argc, const char* const argv[]) {
     if (argc < 2) {
@@ -121,8 +124,8 @@ int main(const int argc, const char* const argv[]) {
     constexpr int samples_per_pixel = sqrt_samples_per_pixel * sqrt_samples_per_pixel;
     constexpr float inverse_samples_per_pixel = 1.0f / static_cast<float>(samples_per_pixel);
 
-    for (int y = 0; y < image.height; ++y) {
-        for (int x = 0; x < image.width; ++x) {
+    for (unsigned y = 0; y < image.height; ++y) {
+        for (unsigned x = 0; x < image.width; ++x) {
             Colour colour{0.0f, 0.0f, 0.0f};
             for (int sample = 0; sample < samples_per_pixel; ++sample) {
                 const float x_offset = static_cast<float>(sample % sqrt_samples_per_pixel) * inverse_sqrt_samples_per_pixel + inverse_double_sqrt_samples_per_pixel;
@@ -149,7 +152,7 @@ int main(const int argc, const char* const argv[]) {
     auto diff = std::chrono::duration_cast<std::chrono::seconds>(end - start);
     std::cout << "Ray tracing time: " << diff.count() << std::endl;
 
-    stbi_write_png(image.filename.c_str(), image.width, image.height, 3, image.pixels, 3 * image.width);
+    stbi_write_png(image.filename.c_str(), static_cast<int>(image.width), static_cast<int>(image.height), 3, image.pixels, 3 * static_cast<int>(image.width));
     
     return 0;
 }
