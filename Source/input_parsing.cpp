@@ -11,35 +11,41 @@
 #include <string>
 #include <cmath>
 
-static bool is_positive_int(const std::string& str) {
-    unsigned non_digit_count = 0u;
-    for (const char c : str) {
-        if (c < '0' || c > '9') {
-            ++non_digit_count;
-        }
-    }
+static bool is_digit(const char c) {
+    return ('0' <= c && c <= '9');
+}
 
-    return (non_digit_count == 0u);
+static bool is_positive_int(const std::string& str) {
+    return std::all_of(str.begin(), str.end(), is_digit);
 }
 
 static bool is_floating_point(const std::string& str) {
-    int sign_count = 0;
-    unsigned int point_count = 0u;
-    unsigned int non_digit_count = 0u;
-    for (const char c : str) {
-        if (c == '.') {
-            ++point_count;
-        } else if (c == '+') {
-            ++sign_count;
-        } else if (c == '-') {
-            --sign_count;
-        } else if (c < '0' || c > '9') {
-            ++non_digit_count;
+    assert(!str.empty());   // string should be coming from command params which are checked to be non-empty
+
+    const char first_char = str[0];
+    const bool first_char_valid = (first_char == '-' || first_char == '+' || first_char == '.' || is_digit(first_char));
+    if (!first_char_valid) {
+        return false;
+    }
+
+    bool previously_encountered_dot = (first_char == '.');
+
+    const std::size_t char_count = str.size();
+    for (std::size_t i = std::size_t{1}; i < char_count; ++i) {
+        const char c = str[i];
+        if (c == '+' || c == '-') {
+            return false;
+        } else if (c == '.') {
+            if (previously_encountered_dot) {
+                return false;
+            }
+            previously_encountered_dot = true;
+        } else if (!is_digit(c)) {
+            return false;
         }
     }
 
-    bool valid_sign = (-1 <= sign_count && sign_count <= 1);
-    return (point_count <= 1u && valid_sign && non_digit_count == 0u);
+    return true;
 }
 
 struct Command {
