@@ -1,8 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include "../Source/maths.h"
-#include "test_utils.h"
+#include "../Source/maths.cpp"
+#include "test_utils.cpp"
 
 TEST_CASE("floating_point_comparison", "[floating_point_comparison]") {
     SECTION("are_equal") {

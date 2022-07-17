@@ -1,7 +1,3 @@
-#include "input_parsing.h"
-#include "ray_tracing.h"
-#include "maths.h"
-
 #include <algorithm>
 #include <variant>
 #include <sstream>
@@ -10,6 +6,10 @@
 #include <vector>
 #include <string>
 #include <cmath>
+
+#include "input_parsing.h"
+#include "ray_tracing.h"
+#include "maths.h"
 
 static bool is_digit(const char c) {
     return ('0' <= c && c <= '9');
@@ -73,7 +73,7 @@ static Command parse_command(const std::string& str) {
     return command;
 }
 
-std::variant<FileInfo, const char*> parse_input_file(const char* const filename) {
+static std::variant<FileInfo, const char*> parse_input_file(const char* const filename) {
     std::ifstream input_file(filename);
     if (!input_file.is_open()) {
         return "Failed to open input file.";

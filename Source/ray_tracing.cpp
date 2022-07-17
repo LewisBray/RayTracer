@@ -1,6 +1,3 @@
-#include "ray_tracing.h"
-#include "maths.h"
-
 #include <algorithm>
 #include <optional>
 #include <cassert>
@@ -8,8 +5,11 @@
 #include <limits>
 #include <cmath>
 
+#include "ray_tracing.h"
+#include "maths.h"
+
 // Intersection functions
-std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept {
+static std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept {
     assert(are_equal(magnitude(ray.direction), 1.0f));
 
     const Vector a_to_b = triangle.b - triangle.a;
@@ -39,7 +39,7 @@ std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcep
     return intersection_distance;
 }
 
-std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& sphere) noexcept {
+static std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& sphere) noexcept {
     assert(are_equal(magnitude(ray.direction), 1.0f));
 
     const Vector ray_start_to_sphere_centre = sphere.centre - ray.start;
@@ -81,7 +81,7 @@ static std::optional<std::pair<float, float>> intersect_with_unit_sphere(const R
     return std::pair{intersection_distance_1, intersection_distance_2};
 }
 
-std::pair<float, float> intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept {
+static std::pair<float, float> intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept {
     static_assert(std::numeric_limits<float>::is_iec559);
     assert(are_equal(magnitude(ray.direction), 1.0f));  // ensures a finite intersection time
 
@@ -137,7 +137,7 @@ static Colour operator*(const Colour& lhs, const Colour& rhs) noexcept {
     return Colour{lhs.red * rhs.red, lhs.green * rhs.green, lhs.blue * rhs.blue};
 }
 
-Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept {
+static Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept {
     lhs.red += rhs.red;
     lhs.green += rhs.green;
     lhs.blue += rhs.blue;
@@ -145,11 +145,10 @@ Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept {
     return lhs;
 }
 
-Colour operator*(const float scalar, const Colour& colour) noexcept {
+static Colour operator*(const float scalar, const Colour& colour) noexcept {
     return Colour{scalar * colour.red, scalar * colour.green, scalar * colour.blue};
 }
 
-// Attenuation functions
 static float attenuation(const AttenuationParameters& attenuation_parameters, const float distance) noexcept {
     const float constant_term = attenuation_parameters.constant;
     const float linear_term = attenuation_parameters.linear * distance;
@@ -241,8 +240,7 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
     return false;
 }
 
-// Exposed functions
-Vector ray_direction_through_pixel(
+static Vector ray_direction_through_pixel(
     const unsigned pixel_x,
     const unsigned pixel_y,
     const float x_offset,
@@ -257,7 +255,7 @@ Vector ray_direction_through_pixel(
     return normalise(alpha * camera_basis_vectors.i + beta * camera_basis_vectors.j + camera_basis_vectors.k);
 }
 
-Colour intersect(const Ray& ray, const Scene& scene) noexcept {
+static Colour intersect(const Ray& ray, const Scene& scene) noexcept {
     constexpr float infinity = std::numeric_limits<float>::infinity();
 
     std::optional<std::size_t> closest_intersecting_triangle_index = std::nullopt;

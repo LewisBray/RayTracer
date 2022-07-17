@@ -1,12 +1,12 @@
 #ifndef RAY_TRACING_H
 #define RAY_TRACING_H
 
-#include "maths.h"
-
 #include <optional>
 #include <utility>
 #include <vector>
 #include <string>
+
+#include "maths.h"
 
 struct FieldOfView {
     float x;
@@ -31,8 +31,8 @@ struct Colour {
     float blue;
 };
 
-Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept;
-Colour operator*(const float scalar, const Colour& colour) noexcept;
+static Colour& operator+=(Colour& lhs, const Colour& rhs) noexcept;
+static Colour operator*(const float scalar, const Colour& colour) noexcept;
 
 struct DirectionalLightSource {
     Vector direction;
@@ -98,7 +98,7 @@ struct Dimensions {
     float height;
 };
 
-Vector ray_direction_through_pixel(
+static Vector ray_direction_through_pixel(
     unsigned pixel_x,
     unsigned pixel_y,
     float x_offset,
@@ -108,11 +108,6 @@ Vector ray_direction_through_pixel(
     const Dimensions& half_image_dimensions_pixels
 ) noexcept;
 
-Colour intersect(const Ray& ray, const Scene& scene) noexcept;
-
-// Exposed at the moment for testing but ultimately should be static
-std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept;
-std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& sphere) noexcept;
-std::pair<float, float> intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept;
+static Colour intersect(const Ray& ray, const Scene& scene) noexcept;
 
 #endif

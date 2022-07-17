@@ -4,13 +4,13 @@
 #include <ostream>
 #include <array>
 
-constexpr float pi = 3.14159265358979323846264f;
-float to_radians(float angle_in_degrees) noexcept;
+static constexpr float pi = 3.14159265358979323846264f;
+static float to_radians(float angle_in_degrees) noexcept;
 
-constexpr float tolerance = 1.0e-4f;
-bool are_equal(float x, float y) noexcept;
-bool less_than(float x, float y) noexcept;
-bool greater_than(float x, float y) noexcept;
+static constexpr float tolerance = 1.0e-4f;
+static bool are_equal(float x, float y) noexcept;
+static bool less_than(float x, float y) noexcept;
+static bool greater_than(float x, float y) noexcept;
 
 struct Vector {
     float x;
@@ -18,25 +18,25 @@ struct Vector {
     float z;
 };
 
-Vector operator+(const Vector& lhs, const Vector& rhs) noexcept;
-Vector operator-(const Vector& lhs, const Vector& rhs) noexcept;
-float operator*(const Vector& lhs, const Vector& rhs) noexcept;
-Vector operator*(float scalar, const Vector& v) noexcept;
-Vector operator^(const Vector& lhs, const Vector& rhs) noexcept;
-Vector operator/(const Vector& v, float scalar) noexcept;
-std::ostream& operator<<(std::ostream& out, const Vector& v);
-float magnitude(const Vector& v);
-Vector normalise(const Vector& v);
+static Vector operator+(const Vector& lhs, const Vector& rhs) noexcept;
+static Vector operator-(const Vector& lhs, const Vector& rhs) noexcept;
+static float operator*(const Vector& lhs, const Vector& rhs) noexcept;
+static Vector operator*(float scalar, const Vector& v) noexcept;
+static Vector operator^(const Vector& lhs, const Vector& rhs) noexcept;
+static Vector operator/(const Vector& v, float scalar) noexcept;
+static std::ostream& operator<<(std::ostream& out, const Vector& v);
+static float magnitude(const Vector& v);
+static Vector normalise(const Vector& v);
 
 using MatrixRow = std::array<float, 4>;
 using Matrix = std::array<MatrixRow, 3>;
 
-Vector operator*(const Matrix& m, const Vector& v) noexcept;
-Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept;
-Matrix identity_matrix() noexcept;
-Matrix scaling_matrix(float x_scale, float y_scale, float z_scale) noexcept;
-Matrix translation_matrix(float x_offset, float y_offset, float z_offset) noexcept;
-Matrix rotation_matrix(float angle, float axis_x, float axis_y, float axis_z) noexcept;
+static Vector operator*(const Matrix& m, const Vector& v) noexcept;
+static Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept;
+static Matrix identity_matrix() noexcept;
+static Matrix scaling_matrix(float x_scale, float y_scale, float z_scale) noexcept;
+static Matrix translation_matrix(float x_offset, float y_offset, float z_offset) noexcept;
+static Matrix rotation_matrix(float angle, float axis_x, float axis_y, float axis_z) noexcept;
 
 struct Triangle {
     Vector a;
@@ -62,8 +62,8 @@ struct AxisAlignedBoundingBox {
     float max_z;
 };
 
-Vector unit_surface_normal(const Triangle& triangle) noexcept;
-Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noexcept;
-Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Vector& point) noexcept;
+static Vector unit_surface_normal(const Triangle& triangle) noexcept;
+static Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noexcept;
+static Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Vector& point) noexcept;
 
 #endif

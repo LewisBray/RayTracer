@@ -1,11 +1,6 @@
-#include "input_parsing.h"
-#include "ray_tracing.h"
-#include "maths.h"
-
 #include <iostream>
 #include <sstream>
 #include <variant>
-
 #include <chrono>
 
 #pragma clang diagnostic push
@@ -13,6 +8,14 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "include/stb_image_write.h"
 #pragma clang diagnostic pop
+
+#include "maths.h"
+#include "ray_tracing.h"
+#include "input_parsing.h"
+
+#include "maths.cpp"
+#include "ray_tracing.cpp"
+#include "input_parsing.cpp"
 
 int main(const int argc, const char* const argv[]) {
     if (argc < 2) {

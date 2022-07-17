@@ -1,8 +1,9 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include "../Source/input_parsing.h"
-#include "test_utils.h"
+#include "../Source/maths.cpp"
+#include "../Source/input_parsing.cpp"
+#include "test_utils.cpp"
 
 static bool are_equal(const Triangle& lhs, const Triangle& rhs) noexcept {
     return are_equal(lhs.a, rhs.a) && are_equal(lhs.b, rhs.b) && are_equal(lhs.c, rhs.c);

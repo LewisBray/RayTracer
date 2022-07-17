@@ -1,10 +1,10 @@
 #ifndef INPUT_PARSING_H
 #define INPUT_PARSING_H
 
-#include "ray_tracing.h"
-
 #include <variant>
 #include <cstdint>
+
+#include "ray_tracing.h"
 
 struct FileInfo {
     Scene scene;
@@ -13,6 +13,6 @@ struct FileInfo {
     int max_recursion_depth;
 };
 
-std::variant<FileInfo, const char*> parse_input_file(const char* const filename);
+static std::variant<FileInfo, const char*> parse_input_file(const char* const filename);
 
 #endif

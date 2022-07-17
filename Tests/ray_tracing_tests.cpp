@@ -1,8 +1,9 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include "../Source/ray_tracing.h"
-#include "test_utils.h"
+#include "../Source/maths.cpp"
+#include "../Source/ray_tracing.cpp"
+#include "test_utils.cpp"
 
 TEST_CASE("intersect", "[intersect]") {
     SECTION("triangle_intersection") {
@@ -146,7 +147,7 @@ TEST_CASE("ray_through_pixel", "[ray_through_pixel]") {
 
     for (int x = 0; x < image.width; ++x) {
         for (int y = 0; y < image.height; ++y) {
-            const Vector direction = ray_direction_through_pixel(x, y, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
+            const Vector direction = ray_direction_through_pixel(x, y, 0.5f, 0.5f, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
             const Vector image_centre_to_pixel_centre {
                 (x - 1) * image_dimension / 3.0f, (1 - y) * image_dimension / 3.0f, 0.0f
             };
