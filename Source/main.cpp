@@ -14,6 +14,7 @@
 #include "input_parsing.h"
 
 #include "maths.cpp"
+#include "kd_tree.cpp"
 #include "ray_tracing.cpp"
 #include "input_parsing.cpp"
 

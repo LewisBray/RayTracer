@@ -1,6 +1,7 @@
 #include "test_framework.h"
 
 #include "../Source/maths.cpp"
+#include "../Source/kd_tree.cpp"
 #include "../Source/input_parsing.cpp"
 #include "test_utils.cpp"
 

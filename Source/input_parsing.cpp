@@ -3,13 +3,17 @@
 #include <sstream>
 #include <fstream>
 #include <cassert>
+#include <cstring>
 #include <vector>
 #include <string>
 #include <cmath>
 
 #include "input_parsing.h"
 #include "ray_tracing.h"
+#include "kd_tree.h"
 #include "maths.h"
+
+#include <iostream>
 
 static bool is_digit(const char c) {
     return ('0' <= c && c <= '9');
@@ -98,6 +102,10 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
     // bounding boxes
     scene.bounding_box = AxisAlignedBoundingBox{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+
+    std::vector<AxisAlignedBoundingBox> triangle_bounding_boxes;
+    std::vector<AxisAlignedBoundingBox> sphere_bounding_boxes;
+    std::vector<AxisAlignedBoundingBox> ellipsoid_bounding_boxes;
 
     // Lighting
     scene.ambient = Colour{0.2f, 0.2f, 0.2f};
@@ -216,19 +224,23 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             scene.triangle_materials.emplace_back(current_material);
 
             // update scene bounding box
-            const float triangle_min_x = std::min(a.x, std::min(b.x, c.x));
-            const float triangle_max_x = std::max(a.x, std::max(b.x, c.x));
-            const float triangle_min_y = std::min(a.y, std::min(b.y, c.y));
-            const float triangle_max_y = std::max(a.y, std::max(b.y, c.y));
-            const float triangle_min_z = std::min(a.z, std::min(b.z, c.z));
-            const float triangle_max_z = std::max(a.z, std::max(b.z, c.z));
+            const AxisAlignedBoundingBox triangle_bounding_box {
+                std::min(a.x, std::min(b.x, c.x)),
+                std::max(a.x, std::max(b.x, c.x)),
+                std::min(a.y, std::min(b.y, c.y)),
+                std::max(a.y, std::max(b.y, c.y)),
+                std::min(a.z, std::min(b.z, c.z)),
+                std::max(a.z, std::max(b.z, c.z))
+            };
 
-            scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, triangle_min_x);
-            scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, triangle_max_x);
-            scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, triangle_min_y);
-            scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, triangle_max_y);
-            scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, triangle_min_z);
-            scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, triangle_max_z);
+            scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, triangle_bounding_box.min_x);
+            scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, triangle_bounding_box.max_x);
+            scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, triangle_bounding_box.min_y);
+            scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, triangle_bounding_box.max_y);
+            scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, triangle_bounding_box.min_z);
+            scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, triangle_bounding_box.max_z);
+
+            triangle_bounding_boxes.emplace_back(triangle_bounding_box);
         } else if (command.name == "sphere") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 4 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
@@ -300,43 +312,51 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
                     transform[2][2] * transform[2][2];
                 const float z_component_magnitude = std::sqrt(z_component_magnitude_squared);
 
-                const float ellipsoid_min_x = transform[0][3] - x_component_magnitude;
-                const float ellipsoid_max_x = transform[0][3] + x_component_magnitude;
-                const float ellipsoid_min_y = transform[1][3] - y_component_magnitude;
-                const float ellipsoid_max_y = transform[1][3] + y_component_magnitude;
-                const float ellipsoid_min_z = transform[2][3] - z_component_magnitude;
-                const float ellipsoid_max_z = transform[2][3] + z_component_magnitude;
+                const AxisAlignedBoundingBox ellipsoid_bounding_box {
+                    transform[0][3] - x_component_magnitude,
+                    transform[0][3] + x_component_magnitude,
+                    transform[1][3] - y_component_magnitude,
+                    transform[1][3] + y_component_magnitude,
+                    transform[2][3] - z_component_magnitude,
+                    transform[2][3] + z_component_magnitude
+                };
 
-                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, ellipsoid_min_x);
-                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, ellipsoid_max_x);
-                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, ellipsoid_min_y);
-                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, ellipsoid_max_y);
-                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, ellipsoid_min_z);
-                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, ellipsoid_max_z);
+                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, ellipsoid_bounding_box.min_x);
+                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, ellipsoid_bounding_box.max_x);
+                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, ellipsoid_bounding_box.min_y);
+                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, ellipsoid_bounding_box.max_y);
+                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, ellipsoid_bounding_box.min_z);
+                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, ellipsoid_bounding_box.max_z);
+
+                ellipsoid_bounding_boxes.emplace_back(ellipsoid_bounding_box);
             } else {
                 const Vector centre{x_centre, y_centre, z_centre};
                 const Vector transformed_centre = transform * centre;
 
                 const float axes_scaling = std::sqrt(x_scale_squared);
-                const float scaled_radius = axes_scaling * radius;
+                const float scaled_radius = are_equal(axes_scaling, 1.0f) ? radius : axes_scaling * radius;
 
                 scene.spheres.emplace_back(Sphere{transformed_centre, scaled_radius});
                 scene.sphere_materials.emplace_back(current_material);
 
                 // update scene bounding box
-                const float sphere_min_x = transformed_centre.x - scaled_radius;
-                const float sphere_max_x = transformed_centre.x + scaled_radius;
-                const float sphere_min_y = transformed_centre.y - scaled_radius;
-                const float sphere_max_y = transformed_centre.y + scaled_radius;
-                const float sphere_min_z = transformed_centre.z - scaled_radius;
-                const float sphere_max_z = transformed_centre.z + scaled_radius;
+                const AxisAlignedBoundingBox sphere_bounding_box {
+                    transformed_centre.x - scaled_radius,
+                    transformed_centre.x + scaled_radius,
+                    transformed_centre.y - scaled_radius,
+                    transformed_centre.y + scaled_radius,
+                    transformed_centre.z - scaled_radius,
+                    transformed_centre.z + scaled_radius
+                };
 
-                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, sphere_min_x);
-                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, sphere_max_x);
-                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, sphere_min_y);
-                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, sphere_max_y);
-                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, sphere_min_z);
-                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, sphere_max_z);
+                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, sphere_bounding_box.min_x);
+                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, sphere_bounding_box.max_x);
+                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, sphere_bounding_box.min_y);
+                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, sphere_bounding_box.max_y);
+                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, sphere_bounding_box.min_z);
+                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, sphere_bounding_box.max_z);
+
+                sphere_bounding_boxes.emplace_back(sphere_bounding_box);
             }
         } else if (command.name == "pushTransform") {
             if (!command.params.empty()) {
@@ -498,6 +518,30 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
         first_command = false;
     }
+
+    AxisAlignedBoundingBox triangles_bounding_box = {};
+    for (const AxisAlignedBoundingBox& bounding_box : triangle_bounding_boxes) {
+        triangles_bounding_box.min_x = std::min(triangles_bounding_box.min_x, bounding_box.min_x);
+        triangles_bounding_box.max_x = std::max(triangles_bounding_box.max_x, bounding_box.max_x);
+        triangles_bounding_box.min_y = std::min(triangles_bounding_box.min_y, bounding_box.min_y);
+        triangles_bounding_box.max_y = std::max(triangles_bounding_box.max_y, bounding_box.max_y);
+        triangles_bounding_box.min_z = std::min(triangles_bounding_box.min_z, bounding_box.min_z);
+        triangles_bounding_box.max_z = std::max(triangles_bounding_box.max_z, bounding_box.max_z);
+    }
+
+    Node* tree = new Node;
+    tree->bounding_box = triangles_bounding_box;
+    tree->left = nullptr;
+    tree->right = nullptr;
+
+    std::vector<std::uint32_t> triangle_indices;
+    triangle_indices.reserve(triangle_bounding_boxes.size());
+    for (std::uint32_t i = 0; i < triangle_bounding_boxes.size(); ++i) {
+        triangle_indices.emplace_back(i);
+    }
+
+    tree = add_node(triangle_indices, triangle_bounding_boxes, tree);
+    print(tree);
 
     return FileInfo{scene, image, camera, max_recursion_depth};
 }
