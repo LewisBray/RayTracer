@@ -108,6 +108,6 @@ static Vector ray_direction_through_pixel(
     const Dimensions& half_image_dimensions_pixels
 ) noexcept;
 
-static Colour intersect(const Ray& ray, const Scene& scene) noexcept;
+static Colour intersect(Ray ray, const Scene& scene, int max_bounce_count) noexcept;
 
 #endif

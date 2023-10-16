@@ -1,5 +1,4 @@
 // TODO:
-//  - add recursion
 //  - improve tolerance issues
 //  - add profiling
 //  - reduce reliance on c/c++ std library
@@ -146,7 +145,7 @@ int main(const int argc, const char* const argv[]) {
                 const Ray ray{camera.eye, ray_direction};
                 const std::pair<float, float> bounding_box_intersection_times = intersect(ray, scene.bounding_box);
                 if (bounding_box_intersection_times.second >= bounding_box_intersection_times.first) {
-                    colour += intersect(ray, scene);
+                    colour += intersect(ray, scene, file_info.max_recursion_depth);
                 }
             }
 
