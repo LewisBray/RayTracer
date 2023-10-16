@@ -1,3 +1,11 @@
+// TODO:
+//  - add recursion
+//  - improve tolerance issues
+//  - add profiling
+//  - reduce reliance on c/c++ std library
+//  - SIMD routines
+//  - multithreading
+
 #include <iostream>
 #include <sstream>
 #include <variant>
