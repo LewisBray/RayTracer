@@ -10,6 +10,8 @@
 
 // Intersection functions
 static std::optional<float> intersect(const Ray& ray, const Triangle& triangle) noexcept {
+    TIME_BLOCK("intersect triangle");
+
     assert(are_equal(magnitude(ray.direction), 1.0f));
 
     const Vector a_to_b = triangle.b - triangle.a;
@@ -40,6 +42,8 @@ static std::optional<float> intersect(const Ray& ray, const Triangle& triangle) 
 }
 
 static std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sphere& sphere) noexcept {
+    TIME_BLOCK("intersect sphere");
+
     assert(are_equal(magnitude(ray.direction), 1.0f));
 
     const Vector ray_start_to_sphere_centre = sphere.centre - ray.start;
@@ -62,6 +66,8 @@ static std::optional<std::pair<float, float>> intersect(const Ray& ray, const Sp
 }
 
 static std::optional<std::pair<float, float>> intersect_with_unit_sphere(const Ray& ray) noexcept {
+    TIME_BLOCK("intersect ellipsoid");
+
     assert(are_equal(magnitude(ray.direction), 1.0f));
 
     const float intersections_mid_point_distance = -1.0f * ray.start * ray.direction;
@@ -82,6 +88,8 @@ static std::optional<std::pair<float, float>> intersect_with_unit_sphere(const R
 }
 
 static std::pair<float, float> intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept {
+    TIME_BLOCK("intersect aabb");
+    
     static_assert(std::numeric_limits<float>::is_iec559);
     assert(are_equal(magnitude(ray.direction), 1.0f));  // ensures a finite intersection time
 
@@ -167,6 +175,8 @@ static float attenuation(const AttenuationParameters& attenuation_parameters, co
 
 // Light source path checking functions
 static bool path_is_blocked(const Vector& start, const PointLightSource& light, const Scene& scene) noexcept {
+    TIME_BLOCK("path is blocked (point lights)");
+
     const Vector start_to_light = light.position - start;
     const float distance_to_light = magnitude(start_to_light);
     const Ray ray{start, start_to_light / distance_to_light};
@@ -212,6 +222,8 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
 }
 
 static bool path_is_blocked(const Vector& start, const DirectionalLightSource& light, const Scene& scene) noexcept {
+    TIME_BLOCK("path is blocked (directional light)");
+
     const Ray ray{start, -1.0f * light.direction};
 
     for (const Triangle& triangle : scene.triangles) {

@@ -74,6 +74,8 @@ static Command parse_command(const std::string& str) {
 }
 
 static std::variant<FileInfo, const char*> parse_input_file(const char* const filename) {
+    TIME_BLOCK("parse input file");
+    
     std::ifstream input_file(filename);
     if (!input_file.is_open()) {
         return "Failed to open input file.";
