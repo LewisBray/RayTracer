@@ -58,12 +58,6 @@ static Vector operator/(const Vector& v, const float scalar) noexcept {
     return Vector{inverse * v.x, inverse * v.y, inverse * v.z};
 }
 
-// Likely just used for debugging and can probably be removed later
-static std::ostream& operator<<(std::ostream& out, const Vector& v) {
-    out << '(' << v.x << ", " << v.y << ", " << v.z << ')';
-    return out;
-}
-
 static float magnitude(const Vector& v) {
     return std::sqrt(v * v);
 }

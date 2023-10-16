@@ -1,7 +1,6 @@
 #ifndef MATHS_H
 #define MATHS_H
 
-#include <ostream>
 #include <array>
 
 static constexpr float pi = 3.14159265358979323846264f;
@@ -24,7 +23,6 @@ static float operator*(const Vector& lhs, const Vector& rhs) noexcept;
 static Vector operator*(float scalar, const Vector& v) noexcept;
 static Vector operator^(const Vector& lhs, const Vector& rhs) noexcept;
 static Vector operator/(const Vector& v, float scalar) noexcept;
-static std::ostream& operator<<(std::ostream& out, const Vector& v);
 static float magnitude(const Vector& v);
 static Vector normalise(const Vector& v);
 
