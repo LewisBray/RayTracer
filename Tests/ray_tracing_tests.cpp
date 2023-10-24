@@ -56,7 +56,7 @@ TEST(ray_triangle_intersection) {
     const Vector c{-3.0f, 7.0f, 5.0f};
     const Triangle weird_triangle{a, b, c};
     const Vector weird_start{2.0f, 6.0f, 5.0f};
-    const Vector weird_direction{-1.0f / std::sqrt(6.0f), 1.0f / std::sqrt(6.0f), -2.0f / std::sqrt(6.0f)};
+    const Vector weird_direction{-1.0f / fp_sqrt(6.0f), 1.0f / fp_sqrt(6.0f), -2.0f / fp_sqrt(6.0f)};
     const Ray weird_ray{weird_start, weird_direction};
     const std::optional<float> weird_intersection_distance = intersect(weird_ray, weird_triangle);
     EXPECT_TRUE(weird_intersection_distance.has_value());
@@ -88,7 +88,7 @@ TEST(ray_sphere_intersection) {
 
     // Check intersection we expect to miss
     const Vector never_intersecting_start{4.0f, 10.0f, 0.0f};
-    const Vector never_intersecting_direction{1.0f / std::sqrt(3.0f), 1.0f / std::sqrt(3.0f), 1.0f / std::sqrt(3.0f)};
+    const Vector never_intersecting_direction{1.0f / fp_sqrt(3.0f), 1.0f / fp_sqrt(3.0f), 1.0f / fp_sqrt(3.0f)};
     const Ray never_intersecting_ray{never_intersecting_start, never_intersecting_direction};
     const std::optional<std::pair<float, float>> never_intersecting_distances = intersect(never_intersecting_ray, sphere);
     EXPECT_TRUE(!never_intersecting_distances.has_value());
@@ -112,7 +112,7 @@ TEST(ray_direction_through_pixel) {
 
     const Image image{3, 3, nullptr, std::string{}};
 
-    const float image_dimension = 2.0f * (std::sqrt(2.0f) - 1.0f);   // 2 * tan(fov / 2)
+    const float image_dimension = 2.0f * (fp_sqrt(2.0f) - 1.0f);   // 2 * tan(fov / 2)
     const Vector image_centre = camera.eye + normalise(camera.look_at - camera.eye);
 
     const Vector camera_basis_k = normalise(camera.look_at - camera.eye);

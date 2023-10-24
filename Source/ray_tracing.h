@@ -1,10 +1,7 @@
 #ifndef RAY_TRACING_H
 #define RAY_TRACING_H
 
-#include <optional>
-#include <utility>
 #include <vector>
-#include <string>
 
 #include "maths.h"
 
@@ -24,6 +21,13 @@ struct Ray {
     Vector start;
     Vector direction;
 };
+
+struct AABBIntersectionResult {
+    float min_distance;
+    float max_distance;
+};
+
+static AABBIntersectionResult intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept;
 
 struct Colour {
     float red;
@@ -76,7 +80,8 @@ struct Scene {
     Colour ambient;
     AttenuationParameters attenuation_parameters;
     std::vector<PointLightSource> point_light_sources;
-    std::optional<DirectionalLightSource> directional_light_source;
+    DirectionalLightSource directional_light_source;
+    bool has_directional_light_source;
 };
 #pragma clang diagnostic pop
 
@@ -84,7 +89,7 @@ struct Image {
     unsigned width;
     unsigned height;
     std::uint8_t* pixels;
-    std::string filename;
+    char filename[256];
 };
 
 struct BasisVectors {

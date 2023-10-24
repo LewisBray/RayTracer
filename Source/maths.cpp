@@ -1,21 +1,39 @@
-#include <algorithm>
-#include <iterator>
-#include <ostream>
-#include <cassert>
-#include <array>
-#include <cmath>
-
 #include "maths.h"
 
-// Angle conversion
-static float to_radians(const float angle_in_degrees) noexcept {
-    return angle_in_degrees / 180.0f * pi;
+#include <cassert>
+#include <cmath>
+
+#include <immintrin.h>
+
+// Floating point util routines
+static float fp_sqrt(const float x) {
+    const __m128 x128 = _mm_load_ps1(&x);
+    const __m128 sqrt_x128 = _mm_sqrt_ps(x128);
+    return _mm_cvtss_f32(sqrt_x128);
 }
 
+static float fp_min(const float x, const float y) {
+    const __m128 x128 = _mm_load_ps1(&x);
+    const __m128 y128 = _mm_load_ps1(&y);
+    const __m128 z = _mm_min_ss(x128, y128);
+    return _mm_cvtss_f32(z);
+}
 
-// Floating point comparisons
+static float fp_max(const float x, const float y) {
+    const __m128 x128 = _mm_load_ps1(&x);
+    const __m128 y128 = _mm_load_ps1(&y);
+    const __m128 z = _mm_max_ss(x128, y128);
+    return _mm_cvtss_f32(z);
+}
+
+static float fp_abs(float x) {
+    auto* const p = reinterpret_cast<unsigned char*>(&x);
+    p[3] &= 0x7f;
+    return x;
+}
+
 static bool are_equal(const float x, const float y) noexcept {
-    return (std::abs(y - x) < tolerance);
+    return (fp_abs(y - x) < tolerance);
 }
 
 static bool less_than(const float x, const float y) noexcept {
@@ -24,6 +42,12 @@ static bool less_than(const float x, const float y) noexcept {
 
 static bool greater_than(const float x, const float y) noexcept {
     return (x - y > tolerance);
+}
+
+
+// Angle conversion
+static float to_radians(const float angle_in_degrees) noexcept {
+    return angle_in_degrees / 180.0f * PI;
 }
 
 
@@ -59,7 +83,7 @@ static Vector operator/(const Vector& v, const float scalar) noexcept {
 }
 
 static float magnitude(const Vector& v) {
-    return std::sqrt(v * v);
+    return fp_sqrt(v * v);
 }
 
 static Vector normalise(const Vector& v) {
@@ -70,53 +94,53 @@ static Vector normalise(const Vector& v) {
 // Matrix operations
 static Vector operator*(const Matrix& m, const Vector& v) noexcept {
     return Vector {
-        m[0][0] * v.x + m[0][1] * v.y + m[0][2] * v.z + m[0][3],
-        m[1][0] * v.x + m[1][1] * v.y + m[1][2] * v.z + m[1][3],
-        m[2][0] * v.x + m[2][1] * v.y + m[2][2] * v.z + m[2][3]
+        m.rows[0][0] * v.x + m.rows[0][1] * v.y + m.rows[0][2] * v.z + m.rows[0][3],
+        m.rows[1][0] * v.x + m.rows[1][1] * v.y + m.rows[1][2] * v.z + m.rows[1][3],
+        m.rows[2][0] * v.x + m.rows[2][1] * v.y + m.rows[2][2] * v.z + m.rows[2][3]
     };
 }
 
 static Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept {
     Matrix ret;
-    ret[0][0] = lhs[0][0] * rhs[0][0] + lhs[0][1] * rhs[1][0] + lhs[0][2] * rhs[2][0];
-    ret[0][1] = lhs[0][0] * rhs[0][1] + lhs[0][1] * rhs[1][1] + lhs[0][2] * rhs[2][1];
-    ret[0][2] = lhs[0][0] * rhs[0][2] + lhs[0][1] * rhs[1][2] + lhs[0][2] * rhs[2][2];
-    ret[0][3] = lhs[0][0] * rhs[0][3] + lhs[0][1] * rhs[1][3] + lhs[0][2] * rhs[2][3] + lhs[0][3];
+    ret.rows[0][0] = lhs.rows[0][0] * rhs.rows[0][0] + lhs.rows[0][1] * rhs.rows[1][0] + lhs.rows[0][2] * rhs.rows[2][0];
+    ret.rows[0][1] = lhs.rows[0][0] * rhs.rows[0][1] + lhs.rows[0][1] * rhs.rows[1][1] + lhs.rows[0][2] * rhs.rows[2][1];
+    ret.rows[0][2] = lhs.rows[0][0] * rhs.rows[0][2] + lhs.rows[0][1] * rhs.rows[1][2] + lhs.rows[0][2] * rhs.rows[2][2];
+    ret.rows[0][3] = lhs.rows[0][0] * rhs.rows[0][3] + lhs.rows[0][1] * rhs.rows[1][3] + lhs.rows[0][2] * rhs.rows[2][3] + lhs.rows[0][3];
 
-    ret[1][0] = lhs[1][0] * rhs[0][0] + lhs[1][1] * rhs[1][0] + lhs[1][2] * rhs[2][0];
-    ret[1][1] = lhs[1][0] * rhs[0][1] + lhs[1][1] * rhs[1][1] + lhs[1][2] * rhs[2][1];
-    ret[1][2] = lhs[1][0] * rhs[0][2] + lhs[1][1] * rhs[1][2] + lhs[1][2] * rhs[2][2];
-    ret[1][3] = lhs[1][0] * rhs[0][3] + lhs[1][1] * rhs[1][3] + lhs[1][2] * rhs[2][3] + lhs[1][3];
+    ret.rows[1][0] = lhs.rows[1][0] * rhs.rows[0][0] + lhs.rows[1][1] * rhs.rows[1][0] + lhs.rows[1][2] * rhs.rows[2][0];
+    ret.rows[1][1] = lhs.rows[1][0] * rhs.rows[0][1] + lhs.rows[1][1] * rhs.rows[1][1] + lhs.rows[1][2] * rhs.rows[2][1];
+    ret.rows[1][2] = lhs.rows[1][0] * rhs.rows[0][2] + lhs.rows[1][1] * rhs.rows[1][2] + lhs.rows[1][2] * rhs.rows[2][2];
+    ret.rows[1][3] = lhs.rows[1][0] * rhs.rows[0][3] + lhs.rows[1][1] * rhs.rows[1][3] + lhs.rows[1][2] * rhs.rows[2][3] + lhs.rows[1][3];
 
-    ret[2][0] = lhs[2][0] * rhs[0][0] + lhs[2][1] * rhs[1][0] + lhs[2][2] * rhs[2][0];
-    ret[2][1] = lhs[2][0] * rhs[0][1] + lhs[2][1] * rhs[1][1] + lhs[2][2] * rhs[2][1];
-    ret[2][2] = lhs[2][0] * rhs[0][2] + lhs[2][1] * rhs[1][2] + lhs[2][2] * rhs[2][2];
-    ret[2][3] = lhs[2][0] * rhs[0][3] + lhs[2][1] * rhs[1][3] + lhs[2][2] * rhs[2][3] + lhs[2][3];
+    ret.rows[2][0] = lhs.rows[2][0] * rhs.rows[0][0] + lhs.rows[2][1] * rhs.rows[1][0] + lhs.rows[2][2] * rhs.rows[2][0];
+    ret.rows[2][1] = lhs.rows[2][0] * rhs.rows[0][1] + lhs.rows[2][1] * rhs.rows[1][1] + lhs.rows[2][2] * rhs.rows[2][1];
+    ret.rows[2][2] = lhs.rows[2][0] * rhs.rows[0][2] + lhs.rows[2][1] * rhs.rows[1][2] + lhs.rows[2][2] * rhs.rows[2][2];
+    ret.rows[2][3] = lhs.rows[2][0] * rhs.rows[0][3] + lhs.rows[2][1] * rhs.rows[1][3] + lhs.rows[2][2] * rhs.rows[2][3] + lhs.rows[2][3];
     
     return ret;
 }
 
 static Matrix identity_matrix() noexcept {
     return Matrix {
-        MatrixRow{1.0f, 0.0f, 0.0f, 0.0f},
-        MatrixRow{0.0f, 1.0f, 0.0f, 0.0f},
-        MatrixRow{0.0f, 0.0f, 1.0f, 0.0f}
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f
     };
 }
 
 static Matrix scaling_matrix(const float x_scale, const float y_scale, const float z_scale) noexcept {
     return Matrix {
-        MatrixRow{x_scale,    0.0f,    0.0f,    0.0f},
-        MatrixRow{0.0f,    y_scale,    0.0f,    0.0f},
-        MatrixRow{0.0f,       0.0f, z_scale,    0.0f}
+        x_scale,    0.0f,    0.0f,    0.0f,
+        0.0f,    y_scale,    0.0f,    0.0f,
+        0.0f,       0.0f, z_scale,    0.0f
     };
 }
 
 static Matrix translation_matrix(const float x_offset, const float y_offset, const float z_offset) noexcept {
     return Matrix {
-        MatrixRow{1.0f, 0.0f, 0.0f, x_offset},
-        MatrixRow{0.0f, 1.0f, 0.0f, y_offset},
-        MatrixRow{0.0f, 0.0f, 1.0f, z_offset}
+        1.0f, 0.0f, 0.0f, x_offset,
+        0.0f, 1.0f, 0.0f, y_offset,
+        0.0f, 0.0f, 1.0f, z_offset
     };
 }
 
@@ -126,20 +150,20 @@ static Matrix rotation_matrix(const float angle, const float axis_x, const float
     const float cos_angle = std::cos(angle);
 
     Matrix ret;
-    ret[0][0] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.x + cos_angle;
-    ret[0][1] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.y - sin_angle * rotation_vector.z;
-    ret[0][2] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.z + sin_angle * rotation_vector.y;
-    ret[0][3] = 0.0f;
+    ret.rows[0][0] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.x + cos_angle;
+    ret.rows[0][1] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.y - sin_angle * rotation_vector.z;
+    ret.rows[0][2] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.z + sin_angle * rotation_vector.y;
+    ret.rows[0][3] = 0.0f;
 
-    ret[1][0] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.y + sin_angle * rotation_vector.z;
-    ret[1][1] = (1.0f - cos_angle) * rotation_vector.y * rotation_vector.y + cos_angle;
-    ret[1][2] = (1.0f - cos_angle) * rotation_vector.y * rotation_vector.z - sin_angle * rotation_vector.x;
-    ret[1][3] = 0.0f;
+    ret.rows[1][0] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.y + sin_angle * rotation_vector.z;
+    ret.rows[1][1] = (1.0f - cos_angle) * rotation_vector.y * rotation_vector.y + cos_angle;
+    ret.rows[1][2] = (1.0f - cos_angle) * rotation_vector.y * rotation_vector.z - sin_angle * rotation_vector.x;
+    ret.rows[1][3] = 0.0f;
 
-    ret[2][0] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.z - sin_angle * rotation_vector.y;
-    ret[2][1] = (1.0f - cos_angle) * rotation_vector.y * rotation_vector.z + sin_angle * rotation_vector.x;
-    ret[2][2] = (1.0f - cos_angle) * rotation_vector.z * rotation_vector.z + cos_angle;
-    ret[2][3] = 0.0f;
+    ret.rows[2][0] = (1.0f - cos_angle) * rotation_vector.x * rotation_vector.z - sin_angle * rotation_vector.y;
+    ret.rows[2][1] = (1.0f - cos_angle) * rotation_vector.y * rotation_vector.z + sin_angle * rotation_vector.x;
+    ret.rows[2][2] = (1.0f - cos_angle) * rotation_vector.z * rotation_vector.z + cos_angle;
+    ret.rows[2][3] = 0.0f;
 
     return ret;
 }
@@ -156,9 +180,9 @@ static Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noe
 
 static Vector transform_direction_by_transpose(const Matrix& m, const Vector& v) noexcept {
     return Vector {
-        m[0][0] * v.x + m[1][0] * v.y + m[2][0] * v.z,
-        m[0][1] * v.x + m[1][1] * v.y + m[2][1] * v.z,
-        m[0][2] * v.x + m[1][2] * v.y + m[2][2] * v.z
+        m.rows[0][0] * v.x + m.rows[1][0] * v.y + m.rows[2][0] * v.z,
+        m.rows[0][1] * v.x + m.rows[1][1] * v.y + m.rows[2][1] * v.z,
+        m.rows[0][2] * v.x + m.rows[1][2] * v.y + m.rows[2][2] * v.z
     };
 }
 

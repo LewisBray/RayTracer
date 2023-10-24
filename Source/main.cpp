@@ -5,7 +5,6 @@
 //  - SIMD routines
 //  - multithreading
 
-#include <variant>
 #include <cstdio>
 
 #pragma clang diagnostic push
@@ -34,14 +33,13 @@ int main(const int argc, const char* const argv[]) {
 
     profiling::initialise();
     
-    const std::variant<FileInfo, const char*> file_parsing_result = parse_input_file(argv[1]);
-    if (std::holds_alternative<const char*>(file_parsing_result)) {
-        const char* const error_message = std::get<const char*>(file_parsing_result);
-        std::printf("Failed to parse input file. %s\n", error_message);
+    const ParseInputFileResult file_parsing_result = parse_input_file(argv[1]);
+    if (file_parsing_result.error != nullptr) {
+        std::printf("Failed to parse input file. %s\n", file_parsing_result.error);
         return -1;
     }
 
-    const FileInfo& file_info = std::get<FileInfo>(file_parsing_result);
+    const FileInfo& file_info = file_parsing_result.file_info;
     const Scene& scene = file_info.scene;
     const Image& image = file_info.image;
     const Camera& camera = file_info.camera;
@@ -84,8 +82,8 @@ int main(const int argc, const char* const argv[]) {
 
                     const Vector ray_direction = ray_direction_through_pixel(x, y, x_offset, y_offset, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
                     const Ray ray{camera.eye, ray_direction};
-                    const std::pair<float, float> bounding_box_intersection_times = intersect(ray, scene.bounding_box);
-                    if (bounding_box_intersection_times.second >= bounding_box_intersection_times.first) {
+                    const AABBIntersectionResult bounding_box_intersection = intersect(ray, scene.bounding_box);
+                    if (bounding_box_intersection.max_distance >= bounding_box_intersection.min_distance) {
                         colour += intersect(ray, scene, file_info.max_recursion_depth);
                     }
                 }
@@ -99,7 +97,7 @@ int main(const int argc, const char* const argv[]) {
         }
     }
 
-    stbi_write_png(image.filename.c_str(), static_cast<int>(image.width), static_cast<int>(image.height), 3, image.pixels, 3 * static_cast<int>(image.width));
+    stbi_write_png(image.filename, static_cast<int>(image.width), static_cast<int>(image.height), 3, image.pixels, 3 * static_cast<int>(image.width));
 
     profiling::print_collected_data();
     

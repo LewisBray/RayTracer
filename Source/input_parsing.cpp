@@ -1,11 +1,8 @@
-#include <algorithm>
-#include <variant>
 #include <sstream>
 #include <fstream>
 #include <cassert>
 #include <vector>
 #include <string>
-#include <cmath>
 
 #include "input_parsing.h"
 #include "ray_tracing.h"
@@ -16,7 +13,13 @@ static bool is_digit(const char c) {
 }
 
 static bool is_positive_int(const std::string& str) {
-    return std::all_of(str.begin(), str.end(), is_digit);
+    for (const char c : str) {
+        if (!is_digit(c)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static bool is_floating_point(const std::string& str) {
@@ -41,6 +44,16 @@ static bool is_floating_point(const std::string& str) {
             }
             previously_encountered_dot = true;
         } else if (!is_digit(c)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool all_of(const std::vector<std::string>& strings, bool(*f)(const std::string&)) {
+    for (const std::string& str : strings) {
+        if (!f(str)) {
             return false;
         }
     }
@@ -73,12 +86,19 @@ static Command parse_command(const std::string& str) {
     return command;
 }
 
-static std::variant<FileInfo, const char*> parse_input_file(const char* const filename) {
+static ParseInputFileResult parse_error(const char* const error) {
+    ParseInputFileResult result = {};
+    result.error = error;
+
+    return result;
+}
+
+static ParseInputFileResult parse_input_file(const char* const filename) {
     TIME_BLOCK("parse input file");
     
     std::ifstream input_file(filename);
     if (!input_file.is_open()) {
-        return "Failed to open input file.";
+        return parse_error("Failed to open input file.");
     }
     
     Scene scene;
@@ -103,7 +123,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
     // Lighting
     scene.ambient = Colour{0.2f, 0.2f, 0.2f};
-    scene.directional_light_source = std::nullopt;
+    scene.directional_light_source = DirectionalLightSource{Vector{0.0f, 0.0f, 0.0f}, Colour{0.0f, 0.0f, 0.0f}};
+    scene.has_directional_light_source = false;
     scene.attenuation_parameters = AttenuationParameters{1.0f, 0.0f, 0.0f};
 
     // Materials
@@ -123,13 +144,13 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
         
         const Command command = parse_command(line);
         if (first_command && command.name != "size") {
-            return "First command should be 'size'.";
+            return parse_error("First command should be 'size'.");
         }
                 
         if (command.name == "size") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 2 || !std::all_of(params.begin(), params.end(), is_positive_int)) {
-                return "'size' command should have 2 positive integer parameters.";
+            if (params.size() != 2 || !all_of(params, is_positive_int)) {
+                return parse_error("'size' command should have 2 positive integer parameters.");
             }
                         
             image.width = static_cast<unsigned>(std::stoi(params[0]));
@@ -137,30 +158,41 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             image.pixels = new unsigned char[static_cast<std::size_t>(image.width) * static_cast<std::size_t>(image.height) * 3ul];
         } else if (command.name == "output") {
             if (command.params.size() != 1) {
-                return "'output' command should have 1 parameter.";
+                return parse_error("'output' command should have 1 parameter.");
             }
-            
-            image.filename = command.params[0]; // Do I need to add .png to the end if it isn't there?
+
+            const std::string& output_name = command.params[0];
+            if (output_name.length() + 1 > sizeof(image.filename)) {
+                return parse_error("'output' name is too long.");
+            }
+
+            for (std::size_t i = 0; i < output_name.length(); ++i) {
+                image.filename[i] = output_name[i]; // TODO: do I need to add .png to the end if it isn't there?
+            }
+
+            for (std::size_t i = output_name.length(); i < sizeof(image.filename); ++i) {
+                image.filename[i] = '\0';
+            }
         } else if (command.name == "maxdepth") {
             if (command.params.size() != 1 || !is_positive_int(command.params[0])) {
-                return "'maxdepth' command should have 1 positive integer parameter.";
+                return parse_error("'maxdepth' command should have 1 positive integer parameter.");
             }
             
             max_recursion_depth = std::stoi(command.params.front());
         } else if (command.name == "maxverts") {
             if (!vertices.empty()) {
-                return "'maxverts' should be specified before vertices are specified.";
+                return parse_error("'maxverts' should be specified before vertices are specified.");
             }
 
             if (command.params.size() != 1 || !is_positive_int(command.params[0])) {
-                return "'maxverts' command should have 1 positive integer parameter.";
+                return parse_error("'maxverts' command should have 1 positive integer parameter.");
             }
             
             vertices.reserve(std::stoul(command.params[0]));
         } else if (command.name == "camera") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 10 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'camera' command should have 10 floating point parameters.";
+            if (params.size() != 10 || !all_of(params, is_floating_point)) {
+                return parse_error("'camera' command should have 10 floating point parameters.");
             }
             
             camera.eye.x = std::stof(params[0]);
@@ -180,8 +212,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             camera.field_of_view.x = static_cast<float>(image.width) * camera.field_of_view.y / static_cast<float>(image.height);
         } else if (command.name == "vertex") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'vertex' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'vertex' command should have 3 floating point parameters.");
             }
             
             assert(!first_command);
@@ -191,8 +223,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             vertices.emplace_back(Vector{x, y, z});
         } else if (command.name == "tri") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_positive_int)) {
-                return "'tri' command should have 3 positive integer parameters.";
+            if (params.size() != 3 || !all_of(params, is_positive_int)) {
+                return parse_error("'tri' command should have 3 positive integer parameters.");
             }
             
             const std::size_t a_index = std::stoul(params[0]);   // TODO: this throws if cannot be parsed as int
@@ -201,7 +233,7 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
             const std::size_t vertex_count = vertices.size();
             if (a_index >= vertex_count || b_index >= vertex_count || c_index >= vertex_count) {
-                return "Vertex index specified in 'tri' command is beyond the number of specified vertices.";
+                return parse_error("Vertex index specified in 'tri' command is beyond the number of specified vertices.");
             }
 
             Matrix transform = identity_matrix();
@@ -218,23 +250,23 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             scene.triangle_materials.emplace_back(current_material);
 
             // update scene bounding box
-            const float triangle_min_x = std::min(a.x, std::min(b.x, c.x));
-            const float triangle_max_x = std::max(a.x, std::max(b.x, c.x));
-            const float triangle_min_y = std::min(a.y, std::min(b.y, c.y));
-            const float triangle_max_y = std::max(a.y, std::max(b.y, c.y));
-            const float triangle_min_z = std::min(a.z, std::min(b.z, c.z));
-            const float triangle_max_z = std::max(a.z, std::max(b.z, c.z));
+            const float triangle_min_x = fp_min(a.x, fp_min(b.x, c.x));
+            const float triangle_max_x = fp_max(a.x, fp_max(b.x, c.x));
+            const float triangle_min_y = fp_min(a.y, fp_min(b.y, c.y));
+            const float triangle_max_y = fp_max(a.y, fp_max(b.y, c.y));
+            const float triangle_min_z = fp_min(a.z, fp_min(b.z, c.z));
+            const float triangle_max_z = fp_max(a.z, fp_max(b.z, c.z));
 
-            scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, triangle_min_x);
-            scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, triangle_max_x);
-            scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, triangle_min_y);
-            scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, triangle_max_y);
-            scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, triangle_min_z);
-            scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, triangle_max_z);
+            scene.bounding_box.min_x = fp_min(scene.bounding_box.min_x, triangle_min_x);
+            scene.bounding_box.max_x = fp_max(scene.bounding_box.max_x, triangle_max_x);
+            scene.bounding_box.min_y = fp_min(scene.bounding_box.min_y, triangle_min_y);
+            scene.bounding_box.max_y = fp_max(scene.bounding_box.max_y, triangle_max_y);
+            scene.bounding_box.min_z = fp_min(scene.bounding_box.min_z, triangle_min_z);
+            scene.bounding_box.max_z = fp_max(scene.bounding_box.max_z, triangle_max_z);
         } else if (command.name == "sphere") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 4 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'sphere' command should have 4 floating point parameters.";
+            if (params.size() != 4 || !all_of(params, is_floating_point)) {
+                return parse_error("'sphere' command should have 4 floating point parameters.");
             }
             
             const float x_centre = std::stof(params[0]);
@@ -256,9 +288,18 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
             inverse_transform = inverse_current_transform * inverse_transform;
 
-            const float x_scale_squared = transform[0][0] * transform[0][0] + transform[1][0] * transform[1][0] + transform[2][0] * transform[2][0];
-            const float y_scale_squared = transform[0][1] * transform[0][1] + transform[1][1] * transform[1][1] + transform[2][1] * transform[2][1];
-            const float z_scale_squared = transform[0][2] * transform[0][2] + transform[1][2] * transform[1][2] + transform[2][2] * transform[2][2];
+            const float x0 = transform.rows[0][0];
+            const float x1 = transform.rows[1][0];
+            const float x2 = transform.rows[2][0];
+            const float y0 = transform.rows[0][1];
+            const float y1 = transform.rows[1][1];
+            const float y2 = transform.rows[2][1];
+            const float z0 = transform.rows[0][2];
+            const float z1 = transform.rows[1][2];
+            const float z2 = transform.rows[2][2];
+            const float x_scale_squared = x0 * x0 + x1 * x1 + x2 * x2;
+            const float y_scale_squared = y0 * y0 + y1 * y1 + y2 * y2;
+            const float z_scale_squared = z0 * z0 + z1 * z1 + z2 * z2;
             if (!are_equal(x_scale_squared, y_scale_squared) || !are_equal(y_scale_squared, z_scale_squared)) { // i.e. is ellipsoid, not sphere
                 // ensure ellipsoid sphere has centre at origin
                 if (x_centre != 0.0f || y_centre != 0.0f || z_centre != 0.0f) {
@@ -285,41 +326,41 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
                 // update scene bounding box
                 const float x_component_magnitude_squared =
-                    transform[0][0] * transform[0][0] +
-                    transform[0][1] * transform[0][1] +
-                    transform[0][2] * transform[0][2];
-                const float x_component_magnitude = std::sqrt(x_component_magnitude_squared);
+                    transform.rows[0][0] * transform.rows[0][0] +
+                    transform.rows[0][1] * transform.rows[0][1] +
+                    transform.rows[0][2] * transform.rows[0][2];
+                const float x_component_magnitude = fp_sqrt(x_component_magnitude_squared);
 
                 const float y_component_magnitude_squared =
-                    transform[1][0] * transform[1][0] +
-                    transform[1][1] * transform[1][1] +
-                    transform[1][2] * transform[1][2];
-                const float y_component_magnitude = std::sqrt(y_component_magnitude_squared);
+                    transform.rows[1][0] * transform.rows[1][0] +
+                    transform.rows[1][1] * transform.rows[1][1] +
+                    transform.rows[1][2] * transform.rows[1][2];
+                const float y_component_magnitude = fp_sqrt(y_component_magnitude_squared);
 
                 const float z_component_magnitude_squared =
-                    transform[2][0] * transform[2][0] +
-                    transform[2][1] * transform[2][1] +
-                    transform[2][2] * transform[2][2];
-                const float z_component_magnitude = std::sqrt(z_component_magnitude_squared);
+                    transform.rows[2][0] * transform.rows[2][0] +
+                    transform.rows[2][1] * transform.rows[2][1] +
+                    transform.rows[2][2] * transform.rows[2][2];
+                const float z_component_magnitude = fp_sqrt(z_component_magnitude_squared);
 
-                const float ellipsoid_min_x = transform[0][3] - x_component_magnitude;
-                const float ellipsoid_max_x = transform[0][3] + x_component_magnitude;
-                const float ellipsoid_min_y = transform[1][3] - y_component_magnitude;
-                const float ellipsoid_max_y = transform[1][3] + y_component_magnitude;
-                const float ellipsoid_min_z = transform[2][3] - z_component_magnitude;
-                const float ellipsoid_max_z = transform[2][3] + z_component_magnitude;
+                const float ellipsoid_min_x = transform.rows[0][3] - x_component_magnitude;
+                const float ellipsoid_max_x = transform.rows[0][3] + x_component_magnitude;
+                const float ellipsoid_min_y = transform.rows[1][3] - y_component_magnitude;
+                const float ellipsoid_max_y = transform.rows[1][3] + y_component_magnitude;
+                const float ellipsoid_min_z = transform.rows[2][3] - z_component_magnitude;
+                const float ellipsoid_max_z = transform.rows[2][3] + z_component_magnitude;
 
-                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, ellipsoid_min_x);
-                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, ellipsoid_max_x);
-                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, ellipsoid_min_y);
-                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, ellipsoid_max_y);
-                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, ellipsoid_min_z);
-                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, ellipsoid_max_z);
+                scene.bounding_box.min_x = fp_min(scene.bounding_box.min_x, ellipsoid_min_x);
+                scene.bounding_box.max_x = fp_max(scene.bounding_box.max_x, ellipsoid_max_x);
+                scene.bounding_box.min_y = fp_min(scene.bounding_box.min_y, ellipsoid_min_y);
+                scene.bounding_box.max_y = fp_max(scene.bounding_box.max_y, ellipsoid_max_y);
+                scene.bounding_box.min_z = fp_min(scene.bounding_box.min_z, ellipsoid_min_z);
+                scene.bounding_box.max_z = fp_max(scene.bounding_box.max_z, ellipsoid_max_z);
             } else {
                 const Vector centre{x_centre, y_centre, z_centre};
                 const Vector transformed_centre = transform * centre;
 
-                const float axes_scaling = std::sqrt(x_scale_squared);
+                const float axes_scaling = fp_sqrt(x_scale_squared);
                 const float scaled_radius = axes_scaling * radius;
 
                 scene.spheres.emplace_back(Sphere{transformed_centre, scaled_radius});
@@ -333,16 +374,16 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
                 const float sphere_min_z = transformed_centre.z - scaled_radius;
                 const float sphere_max_z = transformed_centre.z + scaled_radius;
 
-                scene.bounding_box.min_x = std::min(scene.bounding_box.min_x, sphere_min_x);
-                scene.bounding_box.max_x = std::max(scene.bounding_box.max_x, sphere_max_x);
-                scene.bounding_box.min_y = std::min(scene.bounding_box.min_y, sphere_min_y);
-                scene.bounding_box.max_y = std::max(scene.bounding_box.max_y, sphere_max_y);
-                scene.bounding_box.min_z = std::min(scene.bounding_box.min_z, sphere_min_z);
-                scene.bounding_box.max_z = std::max(scene.bounding_box.max_z, sphere_max_z);
+                scene.bounding_box.min_x = fp_min(scene.bounding_box.min_x, sphere_min_x);
+                scene.bounding_box.max_x = fp_max(scene.bounding_box.max_x, sphere_max_x);
+                scene.bounding_box.min_y = fp_min(scene.bounding_box.min_y, sphere_min_y);
+                scene.bounding_box.max_y = fp_max(scene.bounding_box.max_y, sphere_max_y);
+                scene.bounding_box.min_z = fp_min(scene.bounding_box.min_z, sphere_min_z);
+                scene.bounding_box.max_z = fp_max(scene.bounding_box.max_z, sphere_max_z);
             }
         } else if (command.name == "pushTransform") {
             if (!command.params.empty()) {
-                return "'pushTransform' command does not take any parameters.";
+                return parse_error("'pushTransform' command does not take any parameters.");
             }
             
             transform_stack.push_back(current_transform);
@@ -351,11 +392,11 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             inverse_current_transform = identity_matrix();
         } else if (command.name == "popTransform") {
             if (!command.params.empty()) {
-                return "'popTransform' command does not take any parameters";
+                return parse_error("'popTransform' command does not take any parameters");
             }
             
             if (transform_stack.empty()) {
-                return "Cannot perform 'popTransform' as there are no transforms on the stack.";
+                return parse_error("Cannot perform 'popTransform' as there are no transforms on the stack.");
             }
 
             assert(!inverse_transform_stack.empty());
@@ -365,8 +406,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             inverse_transform_stack.pop_back();
         } else if (command.name == "translate") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'translate' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'translate' command should have 3 floating point parameters.");
             }
             
             const float x_offset = std::stof(params[0]);
@@ -378,8 +419,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             inverse_current_transform = inverse_translation * inverse_current_transform;
         } else if (command.name == "scale") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'scale' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'scale' command should have 3 floating point parameters.");
             }
             
             const float x_scale = std::stof(params[0]);
@@ -391,8 +432,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             inverse_current_transform = inverse_scaling * inverse_current_transform;
         } else if (command.name == "rotate") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 4 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'rotate' command should have 4 floating point parameters.";
+            if (params.size() != 4 || !all_of(params, is_floating_point)) {
+                return parse_error("'rotate' command should have 4 floating point parameters.");
             }
             
             const float axis_x = std::stof(params[0]);
@@ -406,27 +447,22 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             inverse_current_transform = inverse_rotation * inverse_current_transform;
         } else if (command.name == "directional") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 6 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'directional' command should have 6 floating point parameters.";
+            if (params.size() != 6 || !all_of(params, is_floating_point)) {
+                return parse_error("'directional' command should have 6 floating point parameters.");
             }
+
+            scene.has_directional_light_source = true;
             
-            if (!scene.directional_light_source.has_value()) {
-                scene.directional_light_source = DirectionalLightSource{
-                    Vector{0.0f, 0.0f, 0.0f},
-                    Colour{0.0f, 0.0f, 0.0f},
-                };
-            }
-
             const Vector non_unit_direction = Vector{std::stof(params[0]), std::stof(params[1]), std::stof(params[2])};
-            scene.directional_light_source.value().direction = normalise(non_unit_direction);
+            scene.directional_light_source.direction = normalise(non_unit_direction);
 
-            scene.directional_light_source.value().colour.red = std::stof(params[3]);
-            scene.directional_light_source.value().colour.green = std::stof(params[4]);
-            scene.directional_light_source.value().colour.blue = std::stof(params[5]);
+            scene.directional_light_source.colour.red = std::stof(params[3]);
+            scene.directional_light_source.colour.green = std::stof(params[4]);
+            scene.directional_light_source.colour.blue = std::stof(params[5]);
         } else if (command.name == "point") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 6 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'point' command should have 6 floating point parameters.";
+            if (params.size() != 6 || !all_of(params, is_floating_point)) {
+                return parse_error("'point' command should have 6 floating point parameters.");
             }
             
             const float x = std::stof(params[0]);
@@ -439,14 +475,14 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
 
             const PointLightSource point_light{
                 Vector{x, y, z},
-                Colour{r, g, b},
+                Colour{r, g, b}
             };
 
             scene.point_light_sources.emplace_back(point_light);
         } else if (command.name == "attenuation") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'attenuation' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'attenuation' command should have 3 floating point parameters.");
             }
             
             scene.attenuation_parameters.constant = std::stof(params[0]);
@@ -454,8 +490,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             scene.attenuation_parameters.quadratic = std::stof(params[2]);
         } else if (command.name == "ambient") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'ambient' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'ambient' command should have 3 floating point parameters.");
             }
             
             scene.ambient.red = std::stof(params[0]);
@@ -463,8 +499,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             scene.ambient.blue = std::stof(params[2]);
         } else if (command.name == "diffuse") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'diffuse' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'diffuse' command should have 3 floating point parameters.");
             }
             
             current_material.diffuse.red = std::stof(params[0]);
@@ -472,8 +508,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             current_material.diffuse.blue = std::stof(params[2]);
         } else if (command.name == "specular") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'specular' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'specular' command should have 3 floating point parameters.");
             }
             
             current_material.specular.red = std::stof(params[0]);
@@ -481,8 +517,8 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             current_material.specular.blue = std::stof(params[2]);
         } else if (command.name == "emission") {
             const std::vector<std::string>& params = command.params;
-            if (params.size() != 3 || !std::all_of(params.begin(), params.end(), is_floating_point)) {
-                return "'emission' command should have 3 floating point parameters.";
+            if (params.size() != 3 || !all_of(params, is_floating_point)) {
+                return parse_error("'emission' command should have 3 floating point parameters.");
             }
             
             current_material.emission.red = std::stof(params[0]);
@@ -490,16 +526,16 @@ static std::variant<FileInfo, const char*> parse_input_file(const char* const fi
             current_material.emission.blue = std::stof(params[2]);
         } else if (command.name == "shininess") {
             if (command.params.size() != 1 || !is_floating_point(command.params.front())) {
-                return "'shininess' command should have 1 floating point parameter.";
+                return parse_error("'shininess' command should have 1 floating point parameter.");
             }
             
             current_material.shininess = std::stof(command.params.front());
         } else {
-            return "Unknown command entered.";
+            return parse_error("Unknown command entered.");
         }
 
         first_command = false;
     }
 
-    return FileInfo{scene, image, camera, max_recursion_depth};
+    return ParseInputFileResult{FileInfo{scene, image, camera, max_recursion_depth}, nullptr};
 }

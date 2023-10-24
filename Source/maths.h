@@ -1,15 +1,18 @@
 #ifndef MATHS_H
 #define MATHS_H
 
-#include <array>
-
-static constexpr float pi = 3.14159265358979323846264f;
-static float to_radians(float angle_in_degrees) noexcept;
+static float fp_sqrt(float x);
+static float fp_min(float x, float y);
+static float fp_max(float x, float y);
+static float fp_abs(float x);
 
 static constexpr float tolerance = 1.0e-4f;
 static bool are_equal(float x, float y) noexcept;
 static bool less_than(float x, float y) noexcept;
 static bool greater_than(float x, float y) noexcept;
+
+static constexpr float PI = 3.14159265358979323846264f;
+static float to_radians(float angle_in_degrees) noexcept;
 
 struct Vector {
     float x;
@@ -26,8 +29,9 @@ static Vector operator/(const Vector& v, float scalar) noexcept;
 static float magnitude(const Vector& v);
 static Vector normalise(const Vector& v);
 
-using MatrixRow = std::array<float, 4>;
-using Matrix = std::array<MatrixRow, 3>;
+struct Matrix {
+    float rows[3][4];
+};
 
 static Vector operator*(const Matrix& m, const Vector& v) noexcept;
 static Matrix operator*(const Matrix& lhs, const Matrix& rhs) noexcept;

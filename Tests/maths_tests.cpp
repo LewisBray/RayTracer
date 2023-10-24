@@ -88,7 +88,7 @@ TEST(vector_cross_product) {
 
 TEST(vector_scalar_division) {
     const Vector v1{1.0f, 0.0f, 1.0f};
-    const float d1 = std::sqrt(2.0f);
+    const float d1 = fp_sqrt(2.0f);
     const Vector dv1 = v1 / d1;
     EXPECT_TRUE(are_equal(dv1, Vector{1.0f / d1, 0.0f, 1.0f / d1}));
 }
@@ -96,7 +96,7 @@ TEST(vector_scalar_division) {
 TEST(vector_magnitude) {
     const Vector v1{3.0f, 4.0f, 5.0f};
     const float norm_v1 = magnitude(v1);
-    EXPECT_TRUE(are_equal(norm_v1, std::sqrt(50.0f)));
+    EXPECT_TRUE(are_equal(norm_v1, fp_sqrt(50.0f)));
 }
 
 TEST(vector_normalise) {
@@ -106,7 +106,7 @@ TEST(vector_normalise) {
 
     const Vector v2{2.0f, 0.0f, 2.0f};
     const Vector normalised_v2 = normalise(v2);
-    EXPECT_TRUE(are_equal(normalised_v2, Vector{1.0f / std::sqrt(2.0f), 0.0f, 1.0f / std::sqrt(2.0f)}));
+    EXPECT_TRUE(are_equal(normalised_v2, Vector{1.0f / fp_sqrt(2.0f), 0.0f, 1.0f / fp_sqrt(2.0f)}));
 }
 
 
@@ -140,7 +140,7 @@ TEST(rotation_matrix) {
     EXPECT_TRUE(are_equal(m1, answer1));
 
     const Matrix m2 = rotation_matrix(to_radians(45.0f), 1.0f, 1.0f, 0.0f);
-    const float root_2_inverse = 1.0f / std::sqrt(2.0f);
+    const float root_2_inverse = 1.0f / fp_sqrt(2.0f);
     const Matrix answer2 = {
         0.5f * (1.0f + root_2_inverse), 0.5f * (1.0f - root_2_inverse),           0.5f, 0.0f,
         0.5f * (1.0f - root_2_inverse), 0.5f * (1.0f + root_2_inverse),          -0.5f, 0.0f,
@@ -164,7 +164,7 @@ TEST(matrix_vector_multiplication) {
     const Vector v5 = rotate_45_about_x * i;
     EXPECT_TRUE(are_equal(v5, i));
 
-    const float root_2_inverse = 1.0f / std::sqrt(2.0f);
+    const float root_2_inverse = 1.0f / fp_sqrt(2.0f);
     const Vector v6 = rotate_45_about_x * j;
     EXPECT_TRUE(are_equal(v6, Vector{0.0f, root_2_inverse, root_2_inverse}));
 
