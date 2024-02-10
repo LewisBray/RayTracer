@@ -284,7 +284,7 @@ static Vector ray_direction_through_pixel(
 
 static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count) noexcept {
     static constexpr std::size_t INVALID_INDEX = static_cast<std::size_t>(-1);
-
+    
     Colour colour{0.0f, 0.0f, 0.0f};
     Colour colour_weighting{1.0f, 1.0f, 1.0f};
     for (int bounce_index = 0; bounce_index < max_bounce_count; ++bounce_index) {
@@ -414,7 +414,7 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
                     const Colour diffuse_contribution = diffuse_intensity * material.diffuse;
 
                     const Vector half_angle = normalise(direction_to_ray_start + direction_to_light);
-                    const float specular_intensity = std::pow(fp_max(surface_normal * half_angle, 0.0f), material.shininess);
+                    const float specular_intensity = fp_pow(fp_max(surface_normal * half_angle, 0.0f), material.shininess);
                     const Colour specular_contribution = specular_intensity * material.specular;
 
                     const Colour directional_light_contribution = directional_light_source.colour * (diffuse_contribution + specular_contribution);
@@ -435,7 +435,7 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
                 const Colour diffuse_contribution = diffuse_intensity * material.diffuse;
 
                 const Vector half_angle = normalise(direction_to_ray_start + direction_to_light);
-                const float specular_intensity = std::pow(fp_max(surface_normal * half_angle, 0.0f), material.shininess);
+                const float specular_intensity = fp_pow(fp_max(surface_normal * half_angle, 0.0f), material.shininess);
                 const Colour specular_contribution = specular_intensity * material.specular;
 
                 const float light_attenuation = attenuation(scene.attenuation_parameters, distance_to_light);

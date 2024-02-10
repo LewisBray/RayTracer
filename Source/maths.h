@@ -1,6 +1,7 @@
 #ifndef MATHS_H
 #define MATHS_H
 
+static float fp_pow(float x, float y);
 static float fp_sqrt(float x);
 static float fp_min(float x, float y);
 static float fp_max(float x, float y);

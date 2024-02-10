@@ -6,6 +6,138 @@
 #include <immintrin.h>
 
 // Floating point util routines
+static int get_exponent_127(const float x) {
+    auto* const px = reinterpret_cast<const unsigned char*>(&x);
+
+    int exponent = 0;
+    exponent |= (px[2] & 0x80) >> 7;
+    exponent |= (px[3] & 0x7F) << 1;
+    
+    return exponent;
+}
+
+// calculates log2 : (0, 1] -> (-inf, 0], does not handle subnormal numbers
+static float fp_log2(const float x) {
+    assert(0.0f < x && x <= 1.0f);
+    
+    // since floating point numbers are of the form sign * mantissa * 2^exponent and we
+    // are only dealing with positive numbers, we can say log2(x) = log2(mantissa) + exponent
+    // where mantissa is in [1, 2) and exponent is in [-126, 127]. Therefore, we can use a
+    // polynomial approximation of log2 on [1, 2] to calculate the answer
+    
+    // extract exponent for addition at the end
+    const int exponent_127 = get_exponent_127(x);
+    assert(exponent_127 != 0);  // i.e. is not subnormal
+    const int exponent = exponent_127 - 127;
+    assert(exponent <= 0);
+    
+    // pull out mantissa by taking x and setting exponent to be 0
+    float mantissa = x;
+    auto* const p_mantissa = reinterpret_cast<unsigned char*>(&mantissa);
+    p_mantissa[2] |= 0x80;
+    p_mantissa[3] = 0x3F;
+    
+    // minimax approximation of log2 on [1, 2], max error 1.2538734892163924e-05
+    static constexpr float MINIMAX_APPROXIMATION[] = {
+        -2.80036404536401f,
+        5.0917108473873602f,
+        -3.5507929732452235f,
+        1.6311487949127739f,
+        -0.41656369634969576f,
+        0.044873611393688138f
+    };
+    
+    float log2_mantissa = 0.0f;
+    float multiplier = 1.0f;
+    for (const float coefficient : MINIMAX_APPROXIMATION) {
+        log2_mantissa += coefficient * multiplier;
+        multiplier *= mantissa;
+    }
+    
+    float result = log2_mantissa + static_cast<float>(exponent);
+    result = fp_min(result, 0.0f);  // handle numbers slightly > 0 due to floating point inaccuracies
+    return result;
+}
+
+// calculates exp2 : (-inf, 0]
+static float fp_exp2(const float x) {
+    assert(x <= 0.0f);
+    
+    // since we know x is non-positive, 2^x = 1/2^|x| = 1/(2^(i + f)) = 1/2^i * 1/2^f
+    // where i and f are the integer and fractional part of |x|, respectively. We can
+    // use the reprsentation of IEEE floating point to due 2^i as this is equivalent
+    // to setting the exponential part to be i (after offsetting) and we can use a
+    // polynomial approximation for exp2 on [0, 1] to finish calculating the answer
+    
+    // clamp x so that we can set the exponent in 2^i, floating point numbers won't
+    // handle anymore than an exponent of 127 so enforce that here, if x is any smaller
+    // than -127 it makes very little difference to the answer as 2^x approaches 0 quickly
+    const float clamped_x = fp_max(x, -127.0f);
+    const float abs_x = fp_abs(clamped_x);
+    const int int_part = static_cast<int>(abs_x);
+    const float frac_part = abs_x - static_cast<float>(int_part);
+    
+    // set exponent to be int part of x
+    float exp2_inv_int_part = 0.0f;
+    unsigned char* const p_exp2_inv_int_part = reinterpret_cast<unsigned char*>(&exp2_inv_int_part);
+    const auto exp2_inv_int_part_exponent_127 = static_cast<unsigned char>(-int_part + 127);
+    p_exp2_inv_int_part[2] = (exp2_inv_int_part_exponent_127 & 0x01) << 7;
+    p_exp2_inv_int_part[3] = (exp2_inv_int_part_exponent_127 & 0xFE) >> 1;
+    
+    // minimax approximation of 1/(2^x) on [0, 1], max error 5.3517174626820941e-05
+    static constexpr float MINIMAX_APPROXIMATION[] = {
+        0.99994648282537313f,
+        -0.69137342261578116f,
+        0.23097554273105286f,
+        -0.039602120115271706f
+    };
+    
+    float exp2_inv_frac_part = 0.0f;
+    float multiplier = 1.0f;
+    for (const float coefficient : MINIMAX_APPROXIMATION) {
+        exp2_inv_frac_part += coefficient * multiplier;
+        multiplier *= frac_part;
+    }
+    
+    const float result = exp2_inv_int_part * exp2_inv_frac_part;
+    return result;
+}
+
+static int is_zero_mask(const int x) {
+    const int x_is_negative = x >> 31;
+    const int x_is_positive = -x >> 31;
+    const int x_is_non_zero = x_is_positive | x_is_negative;
+    return ~x_is_non_zero;
+}
+
+// pow : [0, 1] x [0, inf) -> [0, 1], pow(x, y) = exp2(y * log2(x)), pow(x, 0) = 1,
+// therefore we need, log2 : [0, 1] -> (-inf, 0] and exp2 : (-inf, 0] -> [0, 1]
+static float fp_pow(const float x, const float y) {
+    assert(0.0f <= x && x <= 1.0f);
+    assert(0.0f <= y);
+    
+    // we will say subnormal values are ~0 and handle accordingly
+    const int exponent_127_x = get_exponent_127(x);
+    const int x_is_subnormal = is_zero_mask(exponent_127_x);
+    const int exponent_127_y = get_exponent_127(y);
+    const int y_is_subnormal = is_zero_mask(exponent_127_y);
+    
+    // currently branching here but the plan is to SIMD this in the future so leaving for now
+    float result = 0.0f;
+    if (y_is_subnormal) {
+        result = 1.0f;
+    } else if (x_is_subnormal) {
+        result = 0.0f;
+    } else {
+        const float log2_x = fp_log2(x);
+        const float z = y * log2_x;
+        result = fp_exp2(z);
+    }
+    
+    assert(0.0f <= result && result <= 1.0f);
+    return result;
+}
+
 static float fp_sqrt(const float x) {
     const __m128 x128 = _mm_load_ps1(&x);
     const __m128 sqrt_x128 = _mm_sqrt_ps(x128);
