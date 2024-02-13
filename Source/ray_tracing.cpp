@@ -419,27 +419,39 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
     Colour colour{0.0f, 0.0f, 0.0f};
     Colour colour_weighting{1.0f, 1.0f, 1.0f};
     for (int bounce_index = 0; bounce_index < max_bounce_count; ++bounce_index) {
-        std::size_t closest_intersecting_triangle_index = INVALID_INDEX;
-        float closest_triangle_intersection_distance = FLT_MAX;
+        __m256i closest_intersecting_triangle_indices = _mm256_set1_epi32(-1);
+        __m256 closest_triangle_intersection_distances = _mm256_set1_ps(FLT_MAX);
         for (std::size_t i = 0; i < scene.triangle8s.size(); ++i) {
             const __m256 intersection_distances = intersect(ray, scene.triangle8s[i]);
-            float distances[8] = {};
-            _mm256_storeu_ps(distances, intersection_distances);
-            int tri_index = -1;
-            float min = FLT_MAX;
-            for (int j = 0; j < 8; ++j) {
-                if (distances[j] < min) {
-                    tri_index = j;
-                    min = distances[j];
-                }
-            }
+            const __m256 less_than = _mm256_cmp_ps(intersection_distances, closest_triangle_intersection_distances, _CMP_LT_OS);
+            closest_triangle_intersection_distances = _mm256_or_ps(
+                _mm256_and_ps(less_than, intersection_distances),
+                _mm256_andnot_ps(less_than, closest_triangle_intersection_distances)
+            );
             
-            if (min < closest_triangle_intersection_distance) {
-                closest_intersecting_triangle_index = 8 * i + tri_index;
-                closest_triangle_intersection_distance = min;
-            }
+            const __m256i triangle_indices = _mm256_set1_epi32(i);
+            const __m256i less_thani = _mm256_castps_si256(less_than);
+            closest_intersecting_triangle_indices = _mm256_or_si256(
+                _mm256_and_si256(less_thani, triangle_indices),
+                _mm256_andnot_si256(less_thani, closest_intersecting_triangle_indices)
+            );
         }
 
+        std::size_t closest_intersecting_triangle_index = INVALID_INDEX;
+        float closest_triangle_intersection_distance = FLT_MAX;
+        
+        float distances[8] = {};
+        _mm256_storeu_ps(distances, closest_triangle_intersection_distances);
+        unsigned int indices[8] = {};
+        _mm256_storeu_si256((__m256i*)indices, closest_intersecting_triangle_indices);  // TODO: undefined behaviour?
+        
+        for (int j = 0; j < 8; ++j) {
+            if (distances[j] < closest_triangle_intersection_distance) {
+                closest_intersecting_triangle_index = 8 * indices[j] + j;
+                closest_triangle_intersection_distance = distances[j];
+            }
+        }
+        
         std::size_t closest_intersecting_sphere_index = INVALID_INDEX;
         float closest_sphere_intersection_distance = FLT_MAX;
         for (std::size_t i = 0; i < scene.spheres.size(); ++i) {
