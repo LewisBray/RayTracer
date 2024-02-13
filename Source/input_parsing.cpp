@@ -243,11 +243,35 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
 
             transform = transform * current_transform;
 
+            const std::size_t triangle_count = scene.triangles.size();
+            
             const Vector a = transform * vertices[a_index];
             const Vector b = transform * vertices[b_index];
             const Vector c = transform * vertices[c_index];
-            scene.triangles.emplace_back(Triangle{a, b, c});
             scene.triangle_materials.emplace_back(current_material);
+            scene.triangles.emplace_back(Triangle{a, b, c});
+
+            const Vector a_to_b = b - a;
+            const Vector a_to_c = c - a;
+            
+            const std::size_t triangle_batch_index = triangle_count / 8;
+            const std::size_t triangle_index = triangle_count % 8;
+            if (triangle_index == 0) {
+                scene.triangle8s.push_back(Triangle8{});
+            }
+            
+            Triangle8& triangle8 = scene.triangle8s[triangle_batch_index];
+            triangle8.a.x[triangle_index] = a.x;
+            triangle8.a.y[triangle_index] = a.y;
+            triangle8.a.z[triangle_index] = a.z;
+            
+            triangle8.a_to_b.x[triangle_index] = a_to_b.x;
+            triangle8.a_to_b.y[triangle_index] = a_to_b.y;
+            triangle8.a_to_b.z[triangle_index] = a_to_b.z;
+
+            triangle8.a_to_c.x[triangle_index] = a_to_c.x;
+            triangle8.a_to_c.y[triangle_index] = a_to_c.y;
+            triangle8.a_to_c.z[triangle_index] = a_to_c.z;
 
             // update scene bounding box
             const float triangle_min_x = fp_min(a.x, fp_min(b.x, c.x));

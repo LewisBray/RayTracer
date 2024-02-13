@@ -4,23 +4,104 @@
 #include "ray_tracing.h"
 #include "maths.h"
 
+#include <immintrin.h>
+
+__m256 abs(const __m256& x) {
+    const __m256i maski = _mm256_set1_epi32(0x7FFFFFFF);
+    const __m256 mask = _mm256_castsi256_ps(maski);
+    
+    const __m256 result = _mm256_and_ps(x, mask);
+    return result;
+}
+
+struct Vec3AVX {
+    __m256 x;
+    __m256 y;
+    __m256 z;
+};
+
+Vec3AVX load(const Vector& v) {
+    Vec3AVX result = {};
+    result.x = _mm256_set1_ps(v.x);
+    result.y = _mm256_set1_ps(v.y);
+    result.z = _mm256_set1_ps(v.z);
+    
+    return result;
+}
+
+Vec3AVX load(const Vec3x8& v) {
+    Vec3AVX result = {};
+    result.x = _mm256_loadu_ps(v.x);
+    result.y = _mm256_loadu_ps(v.y);
+    result.z = _mm256_loadu_ps(v.z);
+    
+    return result;
+}
+
+static Vec3AVX operator+(const Vec3AVX& lhs, const Vec3AVX& rhs) {
+    Vec3AVX result = {};
+    result.x = _mm256_add_ps(lhs.x, rhs.x);
+    result.y = _mm256_add_ps(lhs.y, rhs.y);
+    result.z = _mm256_add_ps(lhs.z, rhs.z);
+    
+    return result;
+}
+
+static Vec3AVX operator-(const Vec3AVX& lhs, const Vec3AVX& rhs) {
+    Vec3AVX result = {};
+    result.x = _mm256_sub_ps(lhs.x, rhs.x);
+    result.y = _mm256_sub_ps(lhs.y, rhs.y);
+    result.z = _mm256_sub_ps(lhs.z, rhs.z);
+    
+    return result;
+}
+
+static Vec3AVX operator*(const __m256& scalar, const Vec3AVX& v) {
+    Vec3AVX result = {};
+    result.x = _mm256_mul_ps(scalar, v.x);
+    result.y = _mm256_mul_ps(scalar, v.y);
+    result.z = _mm256_mul_ps(scalar, v.z);
+    
+    return result;
+}
+
+static __m256 operator*(const Vec3AVX& lhs, const Vec3AVX& rhs) {
+    const __m256 x2 = _mm256_mul_ps(lhs.x, rhs.x);
+    const __m256 y2 = _mm256_mul_ps(lhs.y, rhs.y);
+    const __m256 z2 = _mm256_mul_ps(lhs.z, rhs.z);
+    
+    const __m256 result = _mm256_add_ps(x2, _mm256_add_ps(y2, z2));    
+    return result;
+}
+
+static Vec3AVX operator^(const Vec3AVX& lhs, const Vec3AVX& rhs) {
+    Vec3AVX result = {};
+    result.x = _mm256_sub_ps(_mm256_mul_ps(lhs.y, rhs.z), _mm256_mul_ps(lhs.z, rhs.y));
+    result.y = _mm256_sub_ps(_mm256_mul_ps(lhs.z, rhs.x), _mm256_mul_ps(lhs.x, rhs.z));
+    result.z = _mm256_sub_ps(_mm256_mul_ps(lhs.x, rhs.y), _mm256_mul_ps(lhs.y, rhs.x));
+    
+    return result;
+}
+
 // Intersection functions
 static float intersect(const Ray& ray, const Triangle& triangle) noexcept {
     TIME_BLOCK("intersect triangle");
 
     assert(are_equal(magnitude(ray.direction), 1.0f));
 
+    // cache these in triangle struct, hold a, a_to_b and a_to_c instead of a, b and c
     const Vector a_to_b = triangle.b - triangle.a;
     const Vector a_to_c = triangle.c - triangle.a;
 
     const Vector plane_normal = a_to_b ^ a_to_c;
-    if (are_equal(ray.direction * plane_normal, 0.0f)) {  // Ray and plane are parallel
-        return FLT_MAX;
+    const float ray_direction_dot_plane_normal = ray.direction * plane_normal;
+    if (are_equal(ray_direction_dot_plane_normal, 0.0f)) {  // Ray and plane are parallel
+        return FLT_MAX; // don't do this check, carry on with divide by zero and get infinite intersection point
     }
     
-    const float intersection_distance = ((triangle.a - ray.start) * plane_normal) / (ray.direction * plane_normal);
+    const float intersection_distance = ((triangle.a - ray.start) * plane_normal) / ray_direction_dot_plane_normal;
     if (intersection_distance < tolerance) {    // i.e. <= 0 with some tolerance
-        return FLT_MAX;
+        return FLT_MAX; // set intersection distance to be inf here if check succeeds, don't early out
     }
     
     const Vector intersection_point = ray.start + intersection_distance * ray.direction;
@@ -31,10 +112,60 @@ static float intersect(const Ray& ray, const Triangle& triangle) noexcept {
     const float beta = ((a_to_intersection ^ a_to_c) * plane_normal) / plane_normal_magnitude_squared;
 
     if (alpha < 0.0f || beta < 0.0f || alpha + beta > 1.0f) {
-        return FLT_MAX;
+        return FLT_MAX; // set intersection distance to be inf here if check succeeds
     }
 
     return intersection_distance;
+}
+
+// static float horizontal_min(const __m256 v) {
+//     __m128 i = _mm256_extractf128_ps(v, 1);
+//     i = _mm_min_ps(i, _mm256_castps256_ps128(v));
+//     i = _mm_min_ps(i, _mm_movehl_ps(i, i));
+//     i = _mm_min_ss(i, _mm_movehdup_ps(i));
+//     return _mm_cvtss_f32(i);
+// }
+
+static __m256 intersect(const Ray& ray, const Triangle8& triangle8) {
+    TIME_BLOCK("intersect triangle8");
+    
+    assert(are_equal(magnitude(ray.direction), 1.0f));
+    
+    const Vec3AVX a = load(triangle8.a);
+    const Vec3AVX a_to_b = load(triangle8.a_to_b);
+    const Vec3AVX a_to_c = load(triangle8.a_to_c);
+    
+    const Vec3AVX plane_normal = a_to_b ^ a_to_c;
+    const Vec3AVX ray_direction = load(ray.direction);
+    const __m256 ray_direction_dot_plane_normal = ray_direction * plane_normal;
+    
+    const __m256 abs_ray_direction_dot_plane_normal = abs(ray_direction_dot_plane_normal);
+    const __m256 cmp_tolerance = _mm256_set1_ps(tolerance);
+    const __m256 ray_plane_parallel = _mm256_cmp_ps(abs_ray_direction_dot_plane_normal, cmp_tolerance, _CMP_LT_OS);
+    
+    const Vec3AVX ray_start = load(ray.start);
+    const __m256 intersection_distance = _mm256_div_ps((a - ray_start) * plane_normal, ray_direction_dot_plane_normal);
+    const __m256 intersection_distance_non_positive = _mm256_cmp_ps(intersection_distance, cmp_tolerance, _CMP_LT_OS);
+    
+    const Vec3AVX intersection_point = ray_start + intersection_distance * ray_direction;
+    const Vec3AVX a_to_intersection = intersection_point - a;
+    
+    const __m256 plane_normal_magnitude_squared = plane_normal * plane_normal;
+    const __m256 alpha = _mm256_div_ps((a_to_b ^ a_to_intersection) * plane_normal, plane_normal_magnitude_squared);
+    const __m256 beta = _mm256_div_ps((a_to_intersection ^ a_to_c) * plane_normal, plane_normal_magnitude_squared);
+    
+    const __m256 zero = _mm256_setzero_ps();
+    const __m256 one = _mm256_set1_ps(1.0f);
+    const __m256 alpha_lt_0 = _mm256_cmp_ps(alpha, zero, _CMP_LT_OS);
+    const __m256 beta_lt_0 = _mm256_cmp_ps(beta, zero, _CMP_LT_OS);
+    const __m256 alpha_plus_beta_gt_1 = _mm256_cmp_ps(_mm256_add_ps(alpha, beta), one, _CMP_GT_OS);
+    const __m256 not_barycentric = _mm256_or_ps(_mm256_or_ps(alpha_lt_0, beta_lt_0), alpha_plus_beta_gt_1);
+    
+    const __m256 infinity = _mm256_set1_ps(FLT_MAX);
+    const __m256 remove_mask = _mm256_or_ps(_mm256_or_ps(ray_plane_parallel, intersection_distance_non_positive), not_barycentric);
+    const __m256 result = _mm256_or_ps(_mm256_andnot_ps(remove_mask, intersection_distance), _mm256_and_ps(remove_mask, infinity));
+    
+    return result;
 }
 
 struct SphereIntersectionResult {
@@ -290,11 +421,22 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
     for (int bounce_index = 0; bounce_index < max_bounce_count; ++bounce_index) {
         std::size_t closest_intersecting_triangle_index = INVALID_INDEX;
         float closest_triangle_intersection_distance = FLT_MAX;
-        for (std::size_t i = 0; i < scene.triangles.size(); ++i) {
-            const float intersection_distance = intersect(ray, scene.triangles[i]);
-            if (intersection_distance < closest_triangle_intersection_distance) {
-                closest_intersecting_triangle_index = i;
-                closest_triangle_intersection_distance = intersection_distance;
+        for (std::size_t i = 0; i < scene.triangle8s.size(); ++i) {
+            const __m256 intersection_distances = intersect(ray, scene.triangle8s[i]);
+            float distances[8] = {};
+            _mm256_storeu_ps(distances, intersection_distances);
+            int tri_index = -1;
+            float min = FLT_MAX;
+            for (int j = 0; j < 8; ++j) {
+                if (distances[j] < min) {
+                    tri_index = j;
+                    min = distances[j];
+                }
+            }
+            
+            if (min < closest_triangle_intersection_distance) {
+                closest_intersecting_triangle_index = 8 * i + tri_index;
+                closest_triangle_intersection_distance = min;
             }
         }
 

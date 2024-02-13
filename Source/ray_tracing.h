@@ -5,6 +5,18 @@
 
 #include "maths.h"
 
+struct Vec3x8 {
+    float x[8];
+    float y[8];
+    float z[8];
+};
+
+struct Triangle8 {
+    Vec3x8 a;
+    Vec3x8 a_to_b;
+    Vec3x8 a_to_c;
+};
+
 struct FieldOfView {
     float x;
     float y;
@@ -66,6 +78,7 @@ struct AttenuationParameters {
 #pragma clang diagnostic ignored "-Wpadded"
 struct Scene {
     std::vector<Triangle> triangles;
+    std::vector<Triangle8> triangle8s;
     std::vector<Material> triangle_materials;
 
     std::vector<Sphere> spheres;
