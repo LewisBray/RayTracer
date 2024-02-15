@@ -118,14 +118,6 @@ static float intersect(const Ray& ray, const Triangle& triangle) noexcept {
     return intersection_distance;
 }
 
-// static float horizontal_min(const __m256 v) {
-//     __m128 i = _mm256_extractf128_ps(v, 1);
-//     i = _mm_min_ps(i, _mm256_castps256_ps128(v));
-//     i = _mm_min_ps(i, _mm_movehl_ps(i, i));
-//     i = _mm_min_ss(i, _mm_movehdup_ps(i));
-//     return _mm_cvtss_f32(i);
-// }
-
 static __m256 intersect(const Ray& ray, const Triangle8& triangle8) {
     TIME_BLOCK("intersect triangle8");
     
@@ -419,6 +411,7 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
     Colour colour{0.0f, 0.0f, 0.0f};
     Colour colour_weighting{1.0f, 1.0f, 1.0f};
     for (int bounce_index = 0; bounce_index < max_bounce_count; ++bounce_index) {
+#if 1
         __m256i closest_intersecting_triangle_indices = _mm256_set1_epi32(-1);
         __m256 closest_triangle_intersection_distances = _mm256_set1_ps(FLT_MAX);
         for (std::size_t i = 0; i < scene.triangle8s.size(); ++i) {
@@ -451,6 +444,17 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
                 closest_triangle_intersection_distance = distances[j];
             }
         }
+#else
+        std::size_t closest_intersecting_triangle_index = INVALID_INDEX;
+        float closest_triangle_intersection_distance = FLT_MAX;
+        for (std::size_t i = 0; i < scene.triangles.size(); ++i) {
+            const float intersection_distance = intersect(ray, scene.triangles[i]);
+            if (intersection_distance < closest_triangle_intersection_distance) {
+                closest_triangle_intersection_distance = intersection_distance;
+                closest_intersecting_triangle_index = i;
+            }
+        }
+#endif
         
         std::size_t closest_intersecting_sphere_index = INVALID_INDEX;
         float closest_sphere_intersection_distance = FLT_MAX;
