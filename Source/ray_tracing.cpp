@@ -6,7 +6,7 @@
 
 #include <immintrin.h>
 
-__m256 abs(const __m256& x) {
+static __m256 abs(const __m256& x) {
     const __m256i maski = _mm256_set1_epi32(0x7FFFFFFF);
     const __m256 mask = _mm256_castsi256_ps(maski);
     
@@ -20,7 +20,7 @@ struct Vec3AVX {
     __m256 z;
 };
 
-Vec3AVX load(const Vector& v) {
+static Vec3AVX load(const Vector& v) {
     Vec3AVX result = {};
     result.x = _mm256_set1_ps(v.x);
     result.y = _mm256_set1_ps(v.y);
@@ -29,7 +29,7 @@ Vec3AVX load(const Vector& v) {
     return result;
 }
 
-Vec3AVX load(const Vec3x8& v) {
+static Vec3AVX load(const Vec3x8& v) {
     Vec3AVX result = {};
     result.x = _mm256_loadu_ps(v.x);
     result.y = _mm256_loadu_ps(v.y);
@@ -310,13 +310,26 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
     const Vector start_to_light = light.position - start;
     const float distance_to_light = magnitude(start_to_light);
     const Ray ray{start, start_to_light / distance_to_light};
-
+    
+#if 1
+    for (const Triangle8& triangle8 : scene.triangle8s) {
+        const __m256 intersection_distances = intersect(ray, triangle8);
+        float distances[8] = {};
+        _mm256_storeu_ps(distances, intersection_distances);
+        for (int i = 0; i < 8; ++i) {
+            if (distances[i] < distance_to_light) {
+                return true;
+            }
+        }
+    }
+#else
     for (const Triangle& triangle : scene.triangles) {
         const float intersection_distance = intersect(ray, triangle);
         if (intersection_distance < distance_to_light) {
             return true;
         }
     }
+#endif
 
     for (const Sphere& sphere : scene.spheres) {
         const SphereIntersectionResult sphere_intersection = intersect(ray, sphere);
@@ -356,12 +369,25 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
 
     const Ray ray{start, -1.0f * light.direction};
 
+#if 1
+    for (const Triangle8& triangle8 : scene.triangle8s) {
+        const __m256 intersection_distances = intersect(ray, triangle8);
+        float distances[8] = {};
+        _mm256_storeu_ps(distances, intersection_distances);
+        for (int i = 0; i < 8; ++i) {
+            if (distances[i] < FLT_MAX) {
+                return true;
+            }
+        }
+    }
+#else
     for (const Triangle& triangle : scene.triangles) {
         const float intersection_distance = intersect(ray, triangle);
         if (intersection_distance < FLT_MAX) {
             return true;
         }
     }
+#endif
 
     for (const Sphere& sphere : scene.spheres) {
         const SphereIntersectionResult sphere_intersection = intersect(ray, sphere);
