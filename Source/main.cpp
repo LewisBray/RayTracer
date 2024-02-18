@@ -1,7 +1,5 @@
 // TODO:
 //  - improve tolerance issues
-//  - add profiling
-//  - reduce reliance on c/c++ std library
 //  - SIMD routines
 //  - multithreading
 
