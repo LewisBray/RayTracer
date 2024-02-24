@@ -17,6 +17,11 @@ struct Triangle8 {
     Vec3x8 a_to_c;
 };
 
+struct Sphere8 {
+    Vec3x8 centre;
+    float radius[8];
+};
+
 struct FieldOfView {
     float x;
     float y;
@@ -82,6 +87,7 @@ struct Scene {
     std::vector<Material> triangle_materials;
 
     std::vector<Sphere> spheres;
+    std::vector<Sphere8> sphere8s;
     std::vector<Material> sphere_materials;
 
     std::vector<Ellipsoid> ellipsoids;

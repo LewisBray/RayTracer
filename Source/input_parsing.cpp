@@ -387,8 +387,23 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                 const float axes_scaling = fp_sqrt(x_scale_squared);
                 const float scaled_radius = axes_scaling * radius;
 
+                const std::size_t sphere_count = scene.spheres.size();
+
                 scene.spheres.emplace_back(Sphere{transformed_centre, scaled_radius});
                 scene.sphere_materials.emplace_back(current_material);
+
+                const std::size_t sphere_batch_index = sphere_count / 8;
+                const std::size_t sphere_index = sphere_count % 8;
+                if (sphere_index == 0) {
+                    scene.sphere8s.push_back(Sphere8{});
+                }
+                
+                Sphere8& sphere8 = scene.sphere8s[sphere_batch_index];
+                sphere8.centre.x[sphere_index] = transformed_centre.x;
+                sphere8.centre.y[sphere_index] = transformed_centre.y;
+                sphere8.centre.z[sphere_index] = transformed_centre.z;
+
+                sphere8.radius[sphere_index] = scaled_radius;
 
                 // update scene bounding box
                 const float sphere_min_x = transformed_centre.x - scaled_radius;

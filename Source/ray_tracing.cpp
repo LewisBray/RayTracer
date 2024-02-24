@@ -6,6 +6,8 @@
 
 #include <immintrin.h>
 
+#define SIMD 1
+
 static __m256 abs(const __m256& x) {
     const __m256i maski = _mm256_set1_epi32(0x7FFFFFFF);
     const __m256 mask = _mm256_castsi256_ps(maski);
@@ -192,6 +194,50 @@ static SphereIntersectionResult intersect(const Ray& ray, const Sphere& sphere) 
     return result;
 }
 
+static __m256 intersect(const Ray& ray, const Sphere8& sphere8) {
+    TIME_BLOCK("intersect sphere8");
+
+    assert(are_equal(magnitude(ray.direction), 1.0f));
+
+    const Vec3AVX ray_start = load(ray.start);
+    const Vec3AVX ray_direction = load(ray.direction);
+
+    const Vec3AVX centre = load(sphere8.centre);
+    const __m256 radius = _mm256_loadu_ps(sphere8.radius);
+
+    const Vec3AVX ray_start_to_sphere_centre = centre - ray_start;
+    const __m256 intersections_mid_point_distance = ray_start_to_sphere_centre * ray_direction;
+
+    const __m256 ray_start_to_sphere_centre_distance_squared = ray_start_to_sphere_centre * ray_start_to_sphere_centre;
+    const __m256 intersections_mid_point_distance_squared = _mm256_mul_ps(intersections_mid_point_distance, intersections_mid_point_distance);
+    const __m256 sphere_centre_to_intersections_mid_point_squared = _mm256_sub_ps(ray_start_to_sphere_centre_distance_squared, intersections_mid_point_distance_squared);
+    const __m256 sphere_radius_squared = _mm256_mul_ps(radius, radius);
+    const __m256 intersections_mid_point_to_intersections_distance_squared = _mm256_sub_ps(sphere_radius_squared, sphere_centre_to_intersections_mid_point_squared);
+
+    const __m256 zero = _mm256_setzero_ps();
+    const __m256 no_intersection = _mm256_cmp_ps(intersections_mid_point_to_intersections_distance_squared, zero, _CMP_LT_OS);
+
+    const __m256 intersections_mid_point_to_intersections_distance = _mm256_sqrt_ps(intersections_mid_point_to_intersections_distance_squared);
+
+    // results are invalid if <= 0, we want the minimum of the valid results
+    const __m256 distance_0 = _mm256_sub_ps(intersections_mid_point_distance, intersections_mid_point_to_intersections_distance);
+    const __m256 distance_1 = _mm256_add_ps(intersections_mid_point_distance, intersections_mid_point_to_intersections_distance);
+
+    const __m256 cmp_tolerance = _mm256_set1_ps(tolerance);
+    const __m256 distance_0_non_positive = _mm256_cmp_ps(distance_0, cmp_tolerance, _CMP_LT_OS);
+    const __m256 distance_1_non_positive = _mm256_cmp_ps(distance_1, cmp_tolerance, _CMP_LT_OS);
+
+    const __m256 distance_0_is_invalid = _mm256_or_ps(no_intersection, distance_0_non_positive);
+    const __m256 distance_1_is_invalid = _mm256_or_ps(no_intersection, distance_1_non_positive);
+
+    const __m256 infinity = _mm256_set1_ps(FLT_MAX);
+    const __m256 positive_distance_0 = _mm256_or_ps(_mm256_andnot_ps(distance_0_is_invalid, distance_0), _mm256_and_ps(distance_0_is_invalid, infinity));
+    const __m256 positive_distance_1 = _mm256_or_ps(_mm256_andnot_ps(distance_1_is_invalid, distance_0), _mm256_and_ps(distance_1_is_invalid, infinity));
+    const __m256 result = _mm256_min_ps(positive_distance_0, positive_distance_1);
+
+    return result;
+}
+
 static SphereIntersectionResult intersect_with_unit_sphere(const Ray& ray) noexcept {
     TIME_BLOCK("intersect ellipsoid");
 
@@ -311,7 +357,7 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
     const float distance_to_light = magnitude(start_to_light);
     const Ray ray{start, start_to_light / distance_to_light};
     
-#if 1
+#if SIMD
     for (const Triangle8& triangle8 : scene.triangle8s) {
         const __m256 intersection_distances = intersect(ray, triangle8);
         float distances[8] = {};
@@ -331,6 +377,18 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
     }
 #endif
 
+#if SIMD
+    for (const Sphere8& sphere8 : scene.sphere8s) {
+        const __m256 intersection_distances = intersect(ray, sphere8);
+        float distances[8] = {};
+        _mm256_storeu_ps(distances, intersection_distances);
+        for (int i = 0; i < 8; ++i) {
+            if (distances[i] < distance_to_light) {
+                return true;
+            }
+        }
+    }
+#else
     for (const Sphere& sphere : scene.spheres) {
         const SphereIntersectionResult sphere_intersection = intersect(ray, sphere);
         if (sphere_intersection.is_valid) {
@@ -342,6 +400,7 @@ static bool path_is_blocked(const Vector& start, const PointLightSource& light, 
             }
         }
     }
+#endif
 
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
@@ -369,7 +428,7 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
 
     const Ray ray{start, -1.0f * light.direction};
 
-#if 1
+#if SIMD
     for (const Triangle8& triangle8 : scene.triangle8s) {
         const __m256 intersection_distances = intersect(ray, triangle8);
         float distances[8] = {};
@@ -389,6 +448,18 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
     }
 #endif
 
+#if SIMD
+    for (const Sphere8& sphere8 : scene.sphere8s) {
+        const __m256 intersection_distances = intersect(ray, sphere8);
+        float distances[8] = {};
+        _mm256_storeu_ps(distances, intersection_distances);
+        for (int i = 0; i < 8; ++i) {
+            if (distances[i] < FLT_MAX) {
+                return true;
+            }
+        }
+    }
+#else
     for (const Sphere& sphere : scene.spheres) {
         const SphereIntersectionResult sphere_intersection = intersect(ray, sphere);
         if (sphere_intersection.is_valid) {
@@ -399,6 +470,7 @@ static bool path_is_blocked(const Vector& start, const DirectionalLightSource& l
             }
         }
     }
+#endif
 
     for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
         const Ellipsoid& ellipsoid = scene.ellipsoids[i];
@@ -437,7 +509,7 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
     Colour colour{0.0f, 0.0f, 0.0f};
     Colour colour_weighting{1.0f, 1.0f, 1.0f};
     for (int bounce_index = 0; bounce_index < max_bounce_count; ++bounce_index) {
-#if 1
+#if SIMD
         __m256i closest_intersecting_triangle_indices = _mm256_set1_epi32(-1);
         __m256 closest_triangle_intersection_distances = _mm256_set1_ps(FLT_MAX);
         for (std::size_t i = 0; i < scene.triangle8s.size(); ++i) {
@@ -459,15 +531,15 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
         std::size_t closest_intersecting_triangle_index = INVALID_INDEX;
         float closest_triangle_intersection_distance = FLT_MAX;
         
-        float distances[8] = {};
-        _mm256_storeu_ps(distances, closest_triangle_intersection_distances);
-        unsigned int indices[8] = {};
-        _mm256_storeu_si256((__m256i*)indices, closest_intersecting_triangle_indices);  // TODO: undefined behaviour?
+        float triangle8_distances[8] = {};
+        _mm256_storeu_ps(triangle8_distances, closest_triangle_intersection_distances);
+        unsigned int triangle8_indices[8] = {};
+        _mm256_storeu_si256((__m256i*)triangle8_indices, closest_intersecting_triangle_indices);  // TODO: undefined behaviour?
         
         for (int j = 0; j < 8; ++j) {
-            if (distances[j] < closest_triangle_intersection_distance) {
-                closest_intersecting_triangle_index = 8 * indices[j] + j;
-                closest_triangle_intersection_distance = distances[j];
+            if (triangle8_distances[j] < closest_triangle_intersection_distance) {
+                closest_intersecting_triangle_index = 8 * triangle8_indices[j] + j;
+                closest_triangle_intersection_distance = triangle8_distances[j];
             }
         }
 #else
@@ -482,6 +554,40 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
         }
 #endif
         
+#if SIMD
+        __m256i closest_intersecting_sphere_indices = _mm256_set1_epi32(-1);
+        __m256 closest_sphere_intersection_distances = _mm256_set1_ps(FLT_MAX);
+        for (std::size_t i = 0; i < scene.sphere8s.size(); ++i) {
+            const __m256 intersection_distances = intersect(ray, scene.sphere8s[i]);
+            const __m256 less_than = _mm256_cmp_ps(intersection_distances, closest_sphere_intersection_distances, _CMP_LT_OS);
+            closest_sphere_intersection_distances = _mm256_or_ps(
+                _mm256_and_ps(less_than, intersection_distances),
+                _mm256_andnot_ps(less_than, closest_sphere_intersection_distances)
+            );
+            
+            const __m256i sphere_indices = _mm256_set1_epi32(i);
+            const __m256i less_thani = _mm256_castps_si256(less_than);
+            closest_intersecting_sphere_indices = _mm256_or_si256(
+                _mm256_and_si256(less_thani, sphere_indices),
+                _mm256_andnot_si256(less_thani, closest_intersecting_sphere_indices)
+            );
+        }
+
+        std::size_t closest_intersecting_sphere_index = INVALID_INDEX;
+        float closest_sphere_intersection_distance = FLT_MAX;
+        
+        float sphere8_distances[8] = {};
+        _mm256_storeu_ps(sphere8_distances, closest_sphere_intersection_distances);
+        unsigned int sphere8_indices[8] = {};
+        _mm256_storeu_si256((__m256i*)sphere8_indices, closest_intersecting_sphere_indices);  // TODO: undefined behaviour?
+        
+        for (int j = 0; j < 8; ++j) {
+            if (sphere8_distances[j] < closest_sphere_intersection_distance) {
+                closest_intersecting_sphere_index = 8 * sphere8_indices[j] + j;
+                closest_sphere_intersection_distance = sphere8_distances[j];
+            }
+        }
+#else
         std::size_t closest_intersecting_sphere_index = INVALID_INDEX;
         float closest_sphere_intersection_distance = FLT_MAX;
         for (std::size_t i = 0; i < scene.spheres.size(); ++i) {
@@ -506,6 +612,7 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
                 }
             }
         }
+#endif
 
         std::size_t closest_intersecting_ellipsoid_index = INVALID_INDEX;
         float closest_ellipsoid_intersection_distance = FLT_MAX;
