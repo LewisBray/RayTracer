@@ -344,9 +344,32 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                     inverse_transform = inverse_radius_scaling * inverse_transform;
                 }
 
+                const std::size_t ellipsoid_count = scene.ellipsoids.size();
+
                 scene.ellipsoids.emplace_back(Ellipsoid{inverse_transform});
                 scene.ellipsoid_transforms.emplace_back(transform);
                 scene.ellipsoid_materials.emplace_back(current_material);
+
+                const std::size_t ellipsoid_batch_index = ellipsoid_count / 8;
+                const std::size_t ellipsoid_index = ellipsoid_count % 8;
+                if (ellipsoid_index == 0) {
+                    scene.ellipsoid8_inverse_transforms.push_back(Mat3x4x8{});
+                    scene.ellipsoid8_transforms.push_back(Mat3x4x8{});
+                }
+                
+                Mat3x4x8& ellipsoid8_inverse_transform = scene.ellipsoid8_inverse_transforms[ellipsoid_batch_index];
+                for (int row = 0; row < 3; ++row) {
+                    for (int column = 0; column < 4; ++column){
+                        ellipsoid8_inverse_transform.rows[row][column][ellipsoid_index] = inverse_transform.rows[row][column];
+                    }
+                }
+
+                Mat3x4x8& ellipsoid8_transform = scene.ellipsoid8_transforms[ellipsoid_batch_index];
+                for (int row = 0; row < 3; ++row) {
+                    for (int column = 0; column < 4; ++column){
+                        ellipsoid8_transform.rows[row][column][ellipsoid_index] = transform.rows[row][column];
+                    }
+                }
 
                 // update scene bounding box
                 const float x_component_magnitude_squared =

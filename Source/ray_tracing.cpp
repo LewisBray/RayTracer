@@ -68,11 +68,10 @@ static Vec3AVX operator*(const __m256& scalar, const Vec3AVX& v) {
 }
 
 static __m256 operator*(const Vec3AVX& lhs, const Vec3AVX& rhs) {
-    const __m256 x2 = _mm256_mul_ps(lhs.x, rhs.x);
-    const __m256 y2 = _mm256_mul_ps(lhs.y, rhs.y);
-    const __m256 z2 = _mm256_mul_ps(lhs.z, rhs.z);
-    
-    const __m256 result = _mm256_add_ps(x2, _mm256_add_ps(y2, z2));    
+    __m256 result = _mm256_mul_ps(lhs.x, rhs.x);
+    result = _mm256_fmadd_ps(lhs.y, rhs.y, result);
+    result = _mm256_fmadd_ps(lhs.z, rhs.z, result);
+
     return result;
 }
 
@@ -82,6 +81,49 @@ static Vec3AVX operator^(const Vec3AVX& lhs, const Vec3AVX& rhs) {
     result.y = _mm256_sub_ps(_mm256_mul_ps(lhs.z, rhs.x), _mm256_mul_ps(lhs.x, rhs.z));
     result.z = _mm256_sub_ps(_mm256_mul_ps(lhs.x, rhs.y), _mm256_mul_ps(lhs.y, rhs.x));
     
+    return result;
+}
+
+static __m256 magnitude(const Vec3AVX& v) {
+    return _mm256_sqrt_ps(v * v);
+}
+
+struct Mat3x4AVX {
+    __m256 rows[3][4];
+};
+
+// TODO: is it better to do operations with Mat3x4x8s and load avx registers when needed? maybe no machine code generated?
+static Mat3x4AVX load(const Mat3x4x8& m) {
+    Mat3x4AVX result = {};
+    for (int row = 0; row < 3; ++row) {
+        for (int column = 0; column < 4; ++column) {
+            result.rows[row][column] = _mm256_loadu_ps(m.rows[row][column]);
+        }
+    }
+
+    return result;
+}
+
+static Vec3AVX operator*(const Mat3x4AVX& m, const Vec3AVX& v) {
+    Vec3AVX result = {};
+    // result.x = m.rows[0][0] * v.x + m.rows[0][1] * v.y + m.rows[0][2] * v.z + m.rows[0][3];
+    result.x = _mm256_mul_ps(m.rows[0][0], v.x);
+    result.x = _mm256_fmadd_ps(m.rows[0][1], v.y, result.x);
+    result.x = _mm256_fmadd_ps(m.rows[0][2], v.z, result.x);
+    result.x = _mm256_add_ps(m.rows[0][3], result.x);
+
+    // result.y = m.rows[1][0] * v.x + m.rows[1][1] * v.y + m.rows[1][2] * v.z + m.rows[1][3];
+    result.y = _mm256_mul_ps(m.rows[1][0], v.x);
+    result.y = _mm256_fmadd_ps(m.rows[1][1], v.y, result.y);
+    result.y = _mm256_fmadd_ps(m.rows[1][2], v.z, result.y);
+    result.y = _mm256_add_ps(m.rows[1][3], result.y);
+
+    // result.z = m.rows[2][0] * v.x + m.rows[2][1] * v.y + m.rows[2][2] * v.z + m.rows[2][3];
+    result.z = _mm256_mul_ps(m.rows[2][0], v.x);
+    result.z = _mm256_fmadd_ps(m.rows[2][1], v.y, result.z);
+    result.z = _mm256_fmadd_ps(m.rows[2][2], v.z, result.z);
+    result.z = _mm256_add_ps(m.rows[2][3], result.z);
+
     return result;
 }
 
@@ -262,6 +304,42 @@ static SphereIntersectionResult intersect_with_unit_sphere(const Ray& ray) noexc
     return result;
 }
 
+static __m256 intersect_with_unit_sphere(const Vec3AVX& ray_start, const Vec3AVX& ray_direction) {
+    TIME_BLOCK("intersect unit sphere8");
+
+    const __m256 minus_one = _mm256_set1_ps(-1.0f);
+    const __m256 intersections_mid_point_distance = minus_one * ray_start * ray_direction;
+
+    const __m256 ray_start_magnitude_squared = ray_start * ray_start;
+    const __m256 intersections_mid_point_distance_squared = _mm256_mul_ps(intersections_mid_point_distance, intersections_mid_point_distance);
+    const __m256 sphere_centre_to_intersections_mid_point_squared = _mm256_sub_ps(ray_start_magnitude_squared, intersections_mid_point_distance_squared);
+    const __m256 one = _mm256_set1_ps(1.0f);
+    const __m256 intersections_mid_point_to_intersections_distance_squared = _mm256_sub_ps(one, sphere_centre_to_intersections_mid_point_squared);
+
+    const __m256 zero = _mm256_setzero_ps();
+    const __m256 no_intersection = _mm256_cmp_ps(intersections_mid_point_to_intersections_distance_squared, zero, _CMP_LT_OS);
+
+    const __m256 intersections_mid_point_to_intersections_distance = _mm256_sqrt_ps(intersections_mid_point_to_intersections_distance_squared);
+
+    // results are invalid if <= 0, we want the minimum of the valid results
+    const __m256 distance_0 = _mm256_sub_ps(intersections_mid_point_distance, intersections_mid_point_to_intersections_distance);
+    const __m256 distance_1 = _mm256_add_ps(intersections_mid_point_distance, intersections_mid_point_to_intersections_distance);
+
+    const __m256 cmp_tolerance = _mm256_set1_ps(tolerance);
+    const __m256 distance_0_non_positive = _mm256_cmp_ps(distance_0, cmp_tolerance, _CMP_LT_OS);
+    const __m256 distance_1_non_positive = _mm256_cmp_ps(distance_1, cmp_tolerance, _CMP_LT_OS);
+
+    const __m256 distance_0_is_invalid = _mm256_or_ps(no_intersection, distance_0_non_positive);
+    const __m256 distance_1_is_invalid = _mm256_or_ps(no_intersection, distance_1_non_positive);
+
+    const __m256 infinity = _mm256_set1_ps(FLT_MAX);
+    const __m256 positive_distance_0 = _mm256_or_ps(_mm256_andnot_ps(distance_0_is_invalid, distance_0), _mm256_and_ps(distance_0_is_invalid, infinity));
+    const __m256 positive_distance_1 = _mm256_or_ps(_mm256_andnot_ps(distance_1_is_invalid, distance_0), _mm256_and_ps(distance_1_is_invalid, infinity));
+    const __m256 result = _mm256_min_ps(positive_distance_0, positive_distance_1);
+
+    return result;
+}
+
 static AABBIntersectionResult intersect(const Ray& ray, const AxisAlignedBoundingBox& aabb) noexcept {
     TIME_BLOCK("intersect aabb");
     
@@ -310,6 +388,27 @@ static Ray transform_ray(const Matrix& transform, Ray ray) noexcept {
     ray.direction = transform_direction(transform, ray.direction);
 
     return Ray{ray.start, normalise(ray.direction)};
+}
+
+static Vec3AVX transform_direction(const Mat3x4AVX& m, const Vec3AVX& v) {
+    Vec3AVX result = {};
+
+    // result.x = m.rows[0][0] * v.x + m.rows[0][1] * v.y + m.rows[0][2] * v.z,
+    result.x = _mm256_mul_ps(m.rows[0][0], v.x);
+    result.x = _mm256_fmadd_ps(m.rows[0][1], v.y, result.x);
+    result.x = _mm256_fmadd_ps(m.rows[0][2], v.z, result.x);
+
+    // result.y = m.rows[1][0] * v.x + m.rows[1][1] * v.y + m.rows[1][2] * v.z,
+    result.y = _mm256_mul_ps(m.rows[1][0], v.x);
+    result.y = _mm256_fmadd_ps(m.rows[1][1], v.y, result.y);
+    result.y = _mm256_fmadd_ps(m.rows[1][2], v.z, result.y);
+
+    // result.z = m.rows[2][0] * v.x + m.rows[2][1] * v.y + m.rows[2][2] * v.z
+    result.z = _mm256_mul_ps(m.rows[2][0], v.x);
+    result.z = _mm256_fmadd_ps(m.rows[2][1], v.y, result.z);
+    result.z = _mm256_fmadd_ps(m.rows[2][2], v.z, result.z);
+    
+    return result;
 }
 
 // Colour operations
@@ -614,6 +713,53 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
         }
 #endif
 
+#if SIMD
+        __m256i closest_intersecting_ellipsoid_indices = _mm256_set1_epi32(-1);
+        __m256 closest_ellipsoid_intersection_distances = _mm256_set1_ps(FLT_MAX);
+        for (std::size_t i = 0; i < scene.ellipsoid8_inverse_transforms.size(); ++i) {
+            const Vec3AVX ray_start = load(ray.start);
+            const Vec3AVX ray_direction = load(ray.direction);
+            const Mat3x4AVX ellipsoid_inverse_transform = load(scene.ellipsoid8_inverse_transforms[i]);
+
+            const Vec3AVX transformed_ray_start = ellipsoid_inverse_transform * ray_start;
+            const Vec3AVX transformed_ray_direction = transform_direction(ellipsoid_inverse_transform, ray_direction);
+
+            const __m256 transformed_intersection_distance = intersect_with_unit_sphere(transformed_ray_start, transformed_ray_direction);
+            const Vec3AVX transformed_intersection_point = transformed_ray_start + transformed_intersection_distance * transformed_ray_direction;
+
+            const Mat3x4AVX ellipsoid_transform = load(scene.ellipsoid8_transforms[i]);
+            const Vec3AVX intersection_point = ellipsoid_transform * transformed_intersection_point;
+            const __m256 intersection_distances = magnitude(intersection_point);
+
+            const __m256 less_than = _mm256_cmp_ps(intersection_distances, closest_ellipsoid_intersection_distances, _CMP_LT_OS);
+            closest_ellipsoid_intersection_distances = _mm256_or_ps(
+                _mm256_and_ps(less_than, intersection_distances),
+                _mm256_andnot_ps(less_than, closest_ellipsoid_intersection_distances)
+            );
+            
+            const __m256i ellipsoid_indices = _mm256_set1_epi32(i);
+            const __m256i less_thani = _mm256_castps_si256(less_than);
+            closest_intersecting_ellipsoid_indices = _mm256_or_si256(
+                _mm256_and_si256(less_thani, ellipsoid_indices),
+                _mm256_andnot_si256(less_thani, closest_intersecting_ellipsoid_indices)
+            );
+        }
+
+        std::size_t closest_intersecting_ellipsoid_index = INVALID_INDEX;
+        float closest_ellipsoid_intersection_distance = FLT_MAX;
+        
+        float ellipsoid8_distances[8] = {};
+        _mm256_storeu_ps(ellipsoid8_distances, closest_ellipsoid_intersection_distances);
+        unsigned int ellipsoid8_indices[8] = {};
+        _mm256_storeu_si256((__m256i*)ellipsoid8_indices, closest_intersecting_ellipsoid_indices);  // TODO: undefined behaviour?
+        
+        for (int j = 0; j < 8; ++j) {
+            if (ellipsoid8_distances[j] < closest_ellipsoid_intersection_distance) {
+                closest_intersecting_ellipsoid_index = 8 * ellipsoid8_indices[j] + j;
+                closest_ellipsoid_intersection_distance = ellipsoid8_distances[j];
+            }
+        }
+#else
         std::size_t closest_intersecting_ellipsoid_index = INVALID_INDEX;
         float closest_ellipsoid_intersection_distance = FLT_MAX;
         for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
@@ -647,6 +793,7 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
                 }
             }
         }
+#endif
 
         if (closest_intersecting_triangle_index != INVALID_INDEX || closest_intersecting_sphere_index != INVALID_INDEX ||closest_intersecting_ellipsoid_index != INVALID_INDEX) {
             assert(closest_triangle_intersection_distance < FLT_MAX || closest_sphere_intersection_distance < FLT_MAX || closest_ellipsoid_intersection_distance < FLT_MAX);
