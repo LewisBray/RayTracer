@@ -378,7 +378,7 @@ static __m256 intersect(
     const Vec3AVX transformed_intersection_point = transformed_ray_start + transformed_intersection_distance * transformed_ray_direction;
     const Vec3AVX intersection_point = ellipsoid_transform * transformed_intersection_point;
     
-    const __m256 intersection_distance = magnitude(intersection_point);
+    const __m256 intersection_distance = magnitude(intersection_point - ray_start);
     const __m256 result = _mm256_or_ps(
         _mm256_andnot_ps(ellipsoid_absent, intersection_distance),
         _mm256_and_ps(ellipsoid_absent, infinity)
