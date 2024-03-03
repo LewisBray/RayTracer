@@ -322,6 +322,12 @@ static Vec3AVX transform_direction(const Mat3x4AVX& m, const Vec3AVX& v) {
     result.z = _mm256_fmadd_ps(m.rows[2][1], v.y, result.z);
     result.z = _mm256_fmadd_ps(m.rows[2][2], v.z, result.z);
     
+    // TODO: do this more optimally and remove from this routine
+    const __m256 len = magnitude(result);
+    result.x = _mm256_div_ps(result.x, len);
+    result.y = _mm256_div_ps(result.y, len);
+    result.z = _mm256_div_ps(result.z, len);
+    
     return result;
 }
 
