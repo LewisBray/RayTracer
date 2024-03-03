@@ -740,51 +740,6 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
 #endif
 
 #if SIMD
-        float actual_transformed_distances[8] = {};
-        for (float& d : actual_transformed_distances) {
-            d = FLT_MAX;
-        }
-        
-        float actual_distances[8] = {};
-        for (float& d : actual_distances) {
-            d = FLT_MAX;
-        }
-        
-        for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
-            const Ellipsoid& ellipsoid = scene.ellipsoids[i];
-            const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
-            const SphereIntersectionResult transformed_sphere_intersection = intersect_with_unit_sphere(transformed_ray);
-            if (transformed_sphere_intersection.is_valid) {
-                const float transformed_min_distance = transformed_sphere_intersection.min_distance;
-                const float transformed_max_distance = transformed_sphere_intersection.max_distance;
-
-                const bool transformed_min_distance_is_positive = greater_than(transformed_min_distance, 0.0f);
-                const bool transformed_max_distance_is_positive = greater_than(transformed_max_distance, 0.0f);
-
-                assert(transformed_min_distance <= transformed_max_distance);
-                float& transformed_closest_intersection_distance = actual_transformed_distances[i];
-                if (transformed_min_distance_is_positive) {
-                    transformed_closest_intersection_distance = transformed_min_distance;
-                } else if (transformed_max_distance_is_positive) {
-                    transformed_closest_intersection_distance = transformed_max_distance;
-                }
-
-                if (transformed_closest_intersection_distance < FLT_MAX) {  // TODO: can this check be removed? i.e. adding inf to float produces inf? etc...
-                    const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[i];
-                    const Vector transformed_intersection_point = transformed_ray.start + transformed_closest_intersection_distance * transformed_ray.direction;
-                    const Vector intersection_point = ellipsoid_transform * transformed_intersection_point;
-                    float& intersection_distance = actual_distances[i];
-                    intersection_distance = magnitude(intersection_point - ray.start);
-                }
-            }
-        }
-        
-        for (int i = 0; i < 8; ++i) {
-            if (actual_distances[i] < FLT_MAX) {
-                int x = 5;
-            }
-        }
-
         __m256i closest_intersecting_ellipsoid_indices = _mm256_set1_epi32(-1);
         __m256 closest_ellipsoid_intersection_distances = _mm256_set1_ps(FLT_MAX);
         for (std::size_t i = 0; i < scene.ellipsoid8_inverse_transforms.size(); ++i) {
