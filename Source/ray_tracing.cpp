@@ -304,13 +304,45 @@ static SphereIntersectionResult intersect_with_unit_sphere(const Ray& ray) noexc
     return result;
 }
 
-static __m256 intersect_with_unit_sphere(const Vec3AVX& ray_start, const Vec3AVX& ray_direction) {
-    TIME_BLOCK("intersect unit sphere8");
+static Vec3AVX transform_direction(const Mat3x4AVX& m, const Vec3AVX& v) {
+    Vec3AVX result = {};
+
+    // result.x = m.rows[0][0] * v.x + m.rows[0][1] * v.y + m.rows[0][2] * v.z,
+    result.x = _mm256_mul_ps(m.rows[0][0], v.x);
+    result.x = _mm256_fmadd_ps(m.rows[0][1], v.y, result.x);
+    result.x = _mm256_fmadd_ps(m.rows[0][2], v.z, result.x);
+
+    // result.y = m.rows[1][0] * v.x + m.rows[1][1] * v.y + m.rows[1][2] * v.z,
+    result.y = _mm256_mul_ps(m.rows[1][0], v.x);
+    result.y = _mm256_fmadd_ps(m.rows[1][1], v.y, result.y);
+    result.y = _mm256_fmadd_ps(m.rows[1][2], v.z, result.y);
+
+    // result.z = m.rows[2][0] * v.x + m.rows[2][1] * v.y + m.rows[2][2] * v.z
+    result.z = _mm256_mul_ps(m.rows[2][0], v.x);
+    result.z = _mm256_fmadd_ps(m.rows[2][1], v.y, result.z);
+    result.z = _mm256_fmadd_ps(m.rows[2][2], v.z, result.z);
+    
+    return result;
+}
+
+static __m256 intersect(
+    const Vec3AVX& ray_start,
+    const Vec3AVX& ray_direction,
+    const Mat3x4AVX& ellipsoid_inverse_transform,
+    const Mat3x4AVX& ellipsoid_transform
+) {
+    TIME_BLOCK("intersect ellipsoid8");
+
+    const Vec3AVX transformed_ray_start = ellipsoid_inverse_transform * ray_start;
+    const Vec3AVX transformed_ray_direction = transform_direction(ellipsoid_inverse_transform, ray_direction);
+    
+    const __m256 transformed_ray_direction_magnitude = magnitude(transformed_ray_direction);
+    const __m256 ellipsoid_absent = _mm256_cmp_ps(transformed_ray_direction_magnitude, _mm256_set1_ps(1.0f - tolerance), _CMP_LT_OS);
 
     const __m256 minus_one = _mm256_set1_ps(-1.0f);
-    const __m256 intersections_mid_point_distance = minus_one * ray_start * ray_direction;
+    const __m256 intersections_mid_point_distance = minus_one * transformed_ray_start * transformed_ray_direction;
 
-    const __m256 ray_start_magnitude_squared = ray_start * ray_start;
+    const __m256 ray_start_magnitude_squared = transformed_ray_start * transformed_ray_start;
     const __m256 intersections_mid_point_distance_squared = _mm256_mul_ps(intersections_mid_point_distance, intersections_mid_point_distance);
     const __m256 sphere_centre_to_intersections_mid_point_squared = _mm256_sub_ps(ray_start_magnitude_squared, intersections_mid_point_distance_squared);
     const __m256 one = _mm256_set1_ps(1.0f);
@@ -334,8 +366,17 @@ static __m256 intersect_with_unit_sphere(const Vec3AVX& ray_start, const Vec3AVX
 
     const __m256 infinity = _mm256_set1_ps(FLT_MAX);
     const __m256 positive_distance_0 = _mm256_or_ps(_mm256_andnot_ps(distance_0_is_invalid, distance_0), _mm256_and_ps(distance_0_is_invalid, infinity));
-    const __m256 positive_distance_1 = _mm256_or_ps(_mm256_andnot_ps(distance_1_is_invalid, distance_0), _mm256_and_ps(distance_1_is_invalid, infinity));
-    const __m256 result = _mm256_min_ps(positive_distance_0, positive_distance_1);
+    const __m256 positive_distance_1 = _mm256_or_ps(_mm256_andnot_ps(distance_1_is_invalid, distance_1), _mm256_and_ps(distance_1_is_invalid, infinity));
+    const __m256 transformed_intersection_distance = _mm256_min_ps(positive_distance_0, positive_distance_1);
+
+    const Vec3AVX transformed_intersection_point = transformed_ray_start + transformed_intersection_distance * transformed_ray_direction;
+    const Vec3AVX intersection_point = ellipsoid_transform * transformed_intersection_point;
+    
+    const __m256 intersection_distance = magnitude(intersection_point);
+    const __m256 result = _mm256_or_ps(
+        _mm256_andnot_ps(ellipsoid_absent, intersection_distance),
+        _mm256_and_ps(ellipsoid_absent, infinity)
+    );
 
     return result;
 }
@@ -388,27 +429,6 @@ static Ray transform_ray(const Matrix& transform, Ray ray) noexcept {
     ray.direction = transform_direction(transform, ray.direction);
 
     return Ray{ray.start, normalise(ray.direction)};
-}
-
-static Vec3AVX transform_direction(const Mat3x4AVX& m, const Vec3AVX& v) {
-    Vec3AVX result = {};
-
-    // result.x = m.rows[0][0] * v.x + m.rows[0][1] * v.y + m.rows[0][2] * v.z,
-    result.x = _mm256_mul_ps(m.rows[0][0], v.x);
-    result.x = _mm256_fmadd_ps(m.rows[0][1], v.y, result.x);
-    result.x = _mm256_fmadd_ps(m.rows[0][2], v.z, result.x);
-
-    // result.y = m.rows[1][0] * v.x + m.rows[1][1] * v.y + m.rows[1][2] * v.z,
-    result.y = _mm256_mul_ps(m.rows[1][0], v.x);
-    result.y = _mm256_fmadd_ps(m.rows[1][1], v.y, result.y);
-    result.y = _mm256_fmadd_ps(m.rows[1][2], v.z, result.y);
-
-    // result.z = m.rows[2][0] * v.x + m.rows[2][1] * v.y + m.rows[2][2] * v.z
-    result.z = _mm256_mul_ps(m.rows[2][0], v.x);
-    result.z = _mm256_fmadd_ps(m.rows[2][1], v.y, result.z);
-    result.z = _mm256_fmadd_ps(m.rows[2][2], v.z, result.z);
-    
-    return result;
 }
 
 // Colour operations
@@ -714,22 +734,60 @@ static Colour intersect(Ray ray, const Scene& scene, const int max_bounce_count)
 #endif
 
 #if SIMD
+        float actual_transformed_distances[8] = {};
+        for (float& d : actual_transformed_distances) {
+            d = FLT_MAX;
+        }
+        
+        float actual_distances[8] = {};
+        for (float& d : actual_distances) {
+            d = FLT_MAX;
+        }
+        
+        for (std::size_t i = 0; i < scene.ellipsoids.size(); ++i) {
+            const Ellipsoid& ellipsoid = scene.ellipsoids[i];
+            const Ray transformed_ray = transform_ray(ellipsoid.inverse_transform, ray);
+            const SphereIntersectionResult transformed_sphere_intersection = intersect_with_unit_sphere(transformed_ray);
+            if (transformed_sphere_intersection.is_valid) {
+                const float transformed_min_distance = transformed_sphere_intersection.min_distance;
+                const float transformed_max_distance = transformed_sphere_intersection.max_distance;
+
+                const bool transformed_min_distance_is_positive = greater_than(transformed_min_distance, 0.0f);
+                const bool transformed_max_distance_is_positive = greater_than(transformed_max_distance, 0.0f);
+
+                assert(transformed_min_distance <= transformed_max_distance);
+                float& transformed_closest_intersection_distance = actual_transformed_distances[i];
+                if (transformed_min_distance_is_positive) {
+                    transformed_closest_intersection_distance = transformed_min_distance;
+                } else if (transformed_max_distance_is_positive) {
+                    transformed_closest_intersection_distance = transformed_max_distance;
+                }
+
+                if (transformed_closest_intersection_distance < FLT_MAX) {  // TODO: can this check be removed? i.e. adding inf to float produces inf? etc...
+                    const Matrix& ellipsoid_transform = scene.ellipsoid_transforms[i];
+                    const Vector transformed_intersection_point = transformed_ray.start + transformed_closest_intersection_distance * transformed_ray.direction;
+                    const Vector intersection_point = ellipsoid_transform * transformed_intersection_point;
+                    float& intersection_distance = actual_distances[i];
+                    intersection_distance = magnitude(intersection_point - ray.start);
+                }
+            }
+        }
+        
+        for (int i = 0; i < 8; ++i) {
+            if (actual_distances[i] < FLT_MAX) {
+                int x = 5;
+            }
+        }
+
         __m256i closest_intersecting_ellipsoid_indices = _mm256_set1_epi32(-1);
         __m256 closest_ellipsoid_intersection_distances = _mm256_set1_ps(FLT_MAX);
         for (std::size_t i = 0; i < scene.ellipsoid8_inverse_transforms.size(); ++i) {
             const Vec3AVX ray_start = load(ray.start);
             const Vec3AVX ray_direction = load(ray.direction);
             const Mat3x4AVX ellipsoid_inverse_transform = load(scene.ellipsoid8_inverse_transforms[i]);
-
-            const Vec3AVX transformed_ray_start = ellipsoid_inverse_transform * ray_start;
-            const Vec3AVX transformed_ray_direction = transform_direction(ellipsoid_inverse_transform, ray_direction);
-
-            const __m256 transformed_intersection_distance = intersect_with_unit_sphere(transformed_ray_start, transformed_ray_direction);
-            const Vec3AVX transformed_intersection_point = transformed_ray_start + transformed_intersection_distance * transformed_ray_direction;
-
             const Mat3x4AVX ellipsoid_transform = load(scene.ellipsoid8_transforms[i]);
-            const Vec3AVX intersection_point = ellipsoid_transform * transformed_intersection_point;
-            const __m256 intersection_distances = magnitude(intersection_point);
+
+            const __m256 intersection_distances = intersect(ray_start, ray_direction, ellipsoid_inverse_transform, ellipsoid_transform);
 
             const __m256 less_than = _mm256_cmp_ps(intersection_distances, closest_ellipsoid_intersection_distances, _CMP_LT_OS);
             closest_ellipsoid_intersection_distances = _mm256_or_ps(

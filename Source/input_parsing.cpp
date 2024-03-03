@@ -359,14 +359,14 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                 
                 Mat3x4x8& ellipsoid8_inverse_transform = scene.ellipsoid8_inverse_transforms[ellipsoid_batch_index];
                 for (int row = 0; row < 3; ++row) {
-                    for (int column = 0; column < 4; ++column){
+                    for (int column = 0; column < 4; ++column) {
                         ellipsoid8_inverse_transform.rows[row][column][ellipsoid_index] = inverse_transform.rows[row][column];
                     }
                 }
 
                 Mat3x4x8& ellipsoid8_transform = scene.ellipsoid8_transforms[ellipsoid_batch_index];
                 for (int row = 0; row < 3; ++row) {
-                    for (int column = 0; column < 4; ++column){
+                    for (int column = 0; column < 4; ++column) {
                         ellipsoid8_transform.rows[row][column][ellipsoid_index] = transform.rows[row][column];
                     }
                 }
