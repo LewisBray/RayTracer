@@ -5,6 +5,27 @@
 
 #include "maths.h"
 
+struct Vec3x8 {
+    float x[8];
+    float y[8];
+    float z[8];
+};
+
+struct Mat3x4x8 {
+    float rows[3][4][8];
+};
+
+struct Triangle8 {
+    Vec3x8 a;
+    Vec3x8 a_to_b;
+    Vec3x8 a_to_c;
+};
+
+struct Sphere8 {
+    Vec3x8 centre;
+    float radius[8];
+};
+
 struct FieldOfView {
     float x;
     float y;
@@ -65,14 +86,14 @@ struct AttenuationParameters {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpadded"
 struct Scene {
-    std::vector<Triangle> triangles;
+    std::vector<Triangle8> triangle8s;
     std::vector<Material> triangle_materials;
 
-    std::vector<Sphere> spheres;
+    std::vector<Sphere8> sphere8s;
     std::vector<Material> sphere_materials;
 
-    std::vector<Ellipsoid> ellipsoids;
-    std::vector<Matrix> ellipsoid_transforms;
+    std::vector<Mat3x4x8> ellipsoid8_inverse_transforms;
+    std::vector<Mat3x4x8> ellipsoid8_transforms;
     std::vector<Material> ellipsoid_materials;
 
     AxisAlignedBoundingBox bounding_box;

@@ -2,7 +2,7 @@
 @SETLOCAL
 
 SET start=%time%
-clang main.cpp -o ray_tracer.exe -std=c++1z -g -Weverything -Wno-missing-braces -Wno-c++98-compat -Wno-c++98-compat-pedantic --for-linker=/INCREMENTAL:NO
+clang main.cpp -o ray_tracer.exe -std=c++1z -g -mavx2 -mfma --for-linker=/INCREMENTAL:NO
 SET end=%time%
 
 FOR /f "tokens=1-4 delims=:." %%a in ("%start%") DO (

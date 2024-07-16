@@ -135,6 +135,10 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
         0.0f
     };
     
+    std::size_t triangle_count = 0;
+    std::size_t sphere_count = 0;
+    std::size_t ellipsoid_count = 0;
+    
     std::string line;
     bool first_command = true;
     while (std::getline(input_file, line, '\n')) {
@@ -246,8 +250,29 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
             const Vector a = transform * vertices[a_index];
             const Vector b = transform * vertices[b_index];
             const Vector c = transform * vertices[c_index];
-            scene.triangles.emplace_back(Triangle{a, b, c});
             scene.triangle_materials.emplace_back(current_material);
+
+            const Vector a_to_b = b - a;
+            const Vector a_to_c = c - a;
+            
+            const std::size_t triangle_batch_index = triangle_count / 8;
+            const std::size_t triangle_index = triangle_count % 8;
+            if (triangle_index == 0) {
+                scene.triangle8s.push_back(Triangle8{});
+            }
+            
+            Triangle8& triangle8 = scene.triangle8s[triangle_batch_index];
+            triangle8.a.x[triangle_index] = a.x;
+            triangle8.a.y[triangle_index] = a.y;
+            triangle8.a.z[triangle_index] = a.z;
+            
+            triangle8.a_to_b.x[triangle_index] = a_to_b.x;
+            triangle8.a_to_b.y[triangle_index] = a_to_b.y;
+            triangle8.a_to_b.z[triangle_index] = a_to_b.z;
+
+            triangle8.a_to_c.x[triangle_index] = a_to_c.x;
+            triangle8.a_to_c.y[triangle_index] = a_to_c.y;
+            triangle8.a_to_c.z[triangle_index] = a_to_c.z;
 
             // update scene bounding box
             const float triangle_min_x = fp_min(a.x, fp_min(b.x, c.x));
@@ -263,6 +288,8 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
             scene.bounding_box.max_y = fp_max(scene.bounding_box.max_y, triangle_max_y);
             scene.bounding_box.min_z = fp_min(scene.bounding_box.min_z, triangle_min_z);
             scene.bounding_box.max_z = fp_max(scene.bounding_box.max_z, triangle_max_z);
+            
+            ++triangle_count;
         } else if (command.name == "sphere") {
             const std::vector<std::string>& params = command.params;
             if (params.size() != 4 || !all_of(params, is_floating_point)) {
@@ -320,9 +347,28 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                     inverse_transform = inverse_radius_scaling * inverse_transform;
                 }
 
-                scene.ellipsoids.emplace_back(Ellipsoid{inverse_transform});
-                scene.ellipsoid_transforms.emplace_back(transform);
                 scene.ellipsoid_materials.emplace_back(current_material);
+
+                const std::size_t ellipsoid_batch_index = ellipsoid_count / 8;
+                const std::size_t ellipsoid_index = ellipsoid_count % 8;
+                if (ellipsoid_index == 0) {
+                    scene.ellipsoid8_inverse_transforms.push_back(Mat3x4x8{});
+                    scene.ellipsoid8_transforms.push_back(Mat3x4x8{});
+                }
+                
+                Mat3x4x8& ellipsoid8_inverse_transform = scene.ellipsoid8_inverse_transforms[ellipsoid_batch_index];
+                for (int row = 0; row < 3; ++row) {
+                    for (int column = 0; column < 4; ++column) {
+                        ellipsoid8_inverse_transform.rows[row][column][ellipsoid_index] = inverse_transform.rows[row][column];
+                    }
+                }
+
+                Mat3x4x8& ellipsoid8_transform = scene.ellipsoid8_transforms[ellipsoid_batch_index];
+                for (int row = 0; row < 3; ++row) {
+                    for (int column = 0; column < 4; ++column) {
+                        ellipsoid8_transform.rows[row][column][ellipsoid_index] = transform.rows[row][column];
+                    }
+                }
 
                 // update scene bounding box
                 const float x_component_magnitude_squared =
@@ -356,6 +402,8 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                 scene.bounding_box.max_y = fp_max(scene.bounding_box.max_y, ellipsoid_max_y);
                 scene.bounding_box.min_z = fp_min(scene.bounding_box.min_z, ellipsoid_min_z);
                 scene.bounding_box.max_z = fp_max(scene.bounding_box.max_z, ellipsoid_max_z);
+                
+                ++ellipsoid_count;
             } else {
                 const Vector centre{x_centre, y_centre, z_centre};
                 const Vector transformed_centre = transform * centre;
@@ -363,8 +411,20 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                 const float axes_scaling = fp_sqrt(x_scale_squared);
                 const float scaled_radius = axes_scaling * radius;
 
-                scene.spheres.emplace_back(Sphere{transformed_centre, scaled_radius});
                 scene.sphere_materials.emplace_back(current_material);
+
+                const std::size_t sphere_batch_index = sphere_count / 8;
+                const std::size_t sphere_index = sphere_count % 8;
+                if (sphere_index == 0) {
+                    scene.sphere8s.push_back(Sphere8{});
+                }
+                
+                Sphere8& sphere8 = scene.sphere8s[sphere_batch_index];
+                sphere8.centre.x[sphere_index] = transformed_centre.x;
+                sphere8.centre.y[sphere_index] = transformed_centre.y;
+                sphere8.centre.z[sphere_index] = transformed_centre.z;
+
+                sphere8.radius[sphere_index] = scaled_radius;
 
                 // update scene bounding box
                 const float sphere_min_x = transformed_centre.x - scaled_radius;
@@ -380,6 +440,8 @@ static ParseInputFileResult parse_input_file(const char* const filename) {
                 scene.bounding_box.max_y = fp_max(scene.bounding_box.max_y, sphere_max_y);
                 scene.bounding_box.min_z = fp_min(scene.bounding_box.min_z, sphere_min_z);
                 scene.bounding_box.max_z = fp_max(scene.bounding_box.max_z, sphere_max_z);
+                
+                ++sphere_count;
             }
         } else if (command.name == "pushTransform") {
             if (!command.params.empty()) {

@@ -52,10 +52,6 @@ struct Sphere {
     float radius;
 };
 
-struct Ellipsoid {
-    Matrix inverse_transform;
-};
-
 struct AxisAlignedBoundingBox {
     float min_x;
     float max_x;
@@ -67,6 +63,6 @@ struct AxisAlignedBoundingBox {
 
 static Vector unit_surface_normal(const Triangle& triangle) noexcept;
 static Vector unit_surface_normal(const Sphere& sphere, const Vector& point) noexcept;
-static Vector unit_surface_normal(const Ellipsoid& ellipsoid, const Vector& point) noexcept;
+static Vector unit_surface_normal(const Matrix& ellipsoid_inverse_transform, const Vector& point) noexcept;
 
 #endif
