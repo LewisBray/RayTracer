@@ -164,6 +164,8 @@ static __m256 intersect(const Vec3AVX& ray_start, const Vec3AVX& ray_direction, 
     return result;
 }
 
+// TODO: suffers from same problem as ellipsoid intersections where absent spheres can give valid results
+// these should be masked out but it doesn't actually cause an issue on any of the data sets so leaving for now
 static __m256 intersect(const Vec3AVX& ray_start, const Vec3AVX& ray_direction, const Sphere8& sphere8) {
     TIME_BLOCK("intersect sphere8");
 

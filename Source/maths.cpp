@@ -209,7 +209,6 @@ static Vector operator^(const Vector& lhs, const Vector& rhs) noexcept {
 }
 
 static Vector operator/(const Vector& v, const float scalar) noexcept {
-    assert(scalar != 0.0f);
     const float inverse = 1.0f / scalar;
     return Vector{inverse * v.x, inverse * v.y, inverse * v.z};
 }

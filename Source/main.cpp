@@ -1,7 +1,4 @@
-// TODO:
-//  - improve tolerance issues
-//  - multithreading
-
+#include <thread>
 #include <cstdio>
 
 #pragma clang diagnostic push
@@ -13,14 +10,17 @@
 #include "maths.h"
 #include "ray_tracing.h"
 #include "input_parsing.h"
+#include "render_work_queue.h"
 
 // TODO: has to be included before other .cpp files to work, maybe have some sort of header to fix this?
-#define PROFILING
+// TODO: doesn't work with multithreading, maybe have separate contexts for each thread?
+// #define PROFILING
 #include "profiling.cpp"
 
 #include "maths.cpp"
 #include "ray_tracing.cpp"
 #include "input_parsing.cpp"
+#include "render_work_queue.cpp"
 
 int main(const int argc, const char* const argv[]) {
     if (argc < 2) {
@@ -56,41 +56,37 @@ int main(const int argc, const char* const argv[]) {
         std::tan(0.5f * to_radians(camera.field_of_view.y))
     };
 
-    const Dimensions half_image_dimensions_pixels {
-        0.5f * static_cast<float>(image.width),
-        0.5f * static_cast<float>(image.height)
-    };
-
-    constexpr int sqrt_samples_per_pixel = 1;
-    constexpr float inverse_sqrt_samples_per_pixel = 1.0f / static_cast<float>(sqrt_samples_per_pixel);
-    constexpr float inverse_double_sqrt_samples_per_pixel = 0.5f * inverse_sqrt_samples_per_pixel;
+    RenderWorkQueue work_queue = {};
+    work_queue.entries.resize(image.height);
     
-    constexpr int samples_per_pixel = sqrt_samples_per_pixel * sqrt_samples_per_pixel;
-    constexpr float inverse_samples_per_pixel = 1.0f / static_cast<float>(samples_per_pixel);
-
     {
         TIME_BLOCK("ray tracing");
         for (unsigned y = 0; y < image.height; ++y) {
-            for (unsigned x = 0; x < image.width; ++x) {
-                Colour colour{0.0f, 0.0f, 0.0f};
-                for (int sample = 0; sample < samples_per_pixel; ++sample) {
-                    const float x_offset = static_cast<float>(sample % sqrt_samples_per_pixel) * inverse_sqrt_samples_per_pixel + inverse_double_sqrt_samples_per_pixel;
-                    const float y_offset = static_cast<float>(sample / sqrt_samples_per_pixel) * inverse_sqrt_samples_per_pixel + inverse_double_sqrt_samples_per_pixel;
-
-                    const Vector ray_direction = ray_direction_through_pixel(x, y, x_offset, y_offset, camera_basis_vectors, half_image_dimensions_world, half_image_dimensions_pixels);
-                    const Ray ray{camera.eye, ray_direction};
-                    const AABBIntersectionResult bounding_box_intersection = intersect(ray, scene.bounding_box);
-                    if (bounding_box_intersection.max_distance >= bounding_box_intersection.min_distance) {
-                        colour += intersect(ray, scene, file_info.max_recursion_depth);
-                    }
-                }
-
-                colour = inverse_samples_per_pixel * colour;
-                unsigned char* const pixel = image.pixels + 3 * x + 3 * y * image.width;
-                pixel[0] = static_cast<unsigned char>(colour.red * 255.0f);
-                pixel[1] = static_cast<unsigned char>(colour.green * 255.0f);
-                pixel[2] = static_cast<unsigned char>(colour.blue * 255.0f);
-            }
+            RenderWorkQueue::Entry entry = {};
+            entry.scene = &scene;
+            entry.camera = &camera;
+            entry.camera_basis_vectors = &camera_basis_vectors;
+            entry.image = &image;
+            entry.half_image_dimensions_world = half_image_dimensions_world;
+            entry.y = y;
+            entry.max_recursion_depth = file_info.max_recursion_depth;
+            
+            push_entry(work_queue, entry);
+        }
+        
+        const unsigned int core_count = std::thread::hardware_concurrency();
+        const unsigned int worker_core_count = core_count - 1;
+        std::vector<std::thread> worker_threads;
+        worker_threads.reserve(worker_core_count);
+        for (unsigned int core_index = 0; core_index < worker_core_count; ++core_index) {
+            worker_threads.emplace_back([&work_queue]() { thread_proc(work_queue); });
+        }
+        
+        // have the main thread participate in doing work until all entries are done
+        thread_proc(work_queue);
+                
+        for (unsigned int core_index = 0; core_index < worker_core_count; ++core_index) {
+            worker_threads[core_index].join();
         }
     }
 
